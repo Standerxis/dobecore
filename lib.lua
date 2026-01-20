@@ -914,6 +914,8 @@ local function AddExtras(parent, options, callback)
     local KeyBtn 
     if options.Keybind ~= nil then
         local binding = false
+        local blockKeyUntilRelease = nil
+
         KeyBtn = Instance.new("TextButton", parent)
         KeyBtn.AutomaticSize = Enum.AutomaticSize.XY
         KeyBtn.Size = UDim2.fromOffset(0, 20)
@@ -942,15 +944,11 @@ local function AddExtras(parent, options, callback)
         KeyBtn.Font = Enum.Font.GothamBold
         KeyBtn.TextSize = 12
 
-        -- Tween da caixinha preta
         local function animateBox(show)
-            local goal = {
-                BackgroundTransparency = show and 0 or 1
-            }
             TweenService:Create(
                 KeyBtn,
                 TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                goal
+                { BackgroundTransparency = show and 0 or 1 }
             ):Play()
         end
 
@@ -987,10 +985,11 @@ local function AddExtras(parent, options, callback)
                     end
                     
                     Library.Flags.Binds[flag] = selectedKey.Name
+                    blockKeyUntilRelease = selectedKey
+
                     conInput:Disconnect()
                     resetVisual()
 
-                -- CLICK FORA = LIMPA KEY
                 elseif input.UserInputType == Enum.UserInputType.MouseButton1
                     or input.UserInputType == Enum.UserInputType.MouseButton2 then
                     
@@ -1001,6 +1000,8 @@ local function AddExtras(parent, options, callback)
                     end
                     
                     Library.Flags.Binds[flag] = Enum.KeyCode.Unknown.Name
+                    blockKeyUntilRelease = Enum.KeyCode.Unknown
+
                     conInput:Disconnect()
                     resetVisual()
                 end
@@ -1009,9 +1010,23 @@ local function AddExtras(parent, options, callback)
 
         UserInputService.InputBegan:Connect(function(input, gp)
             if gp or binding then return end
+
             local checkKey = (type(options.Keybind) == "table" and options.Keybind.Value) or options.Keybind
-            if input.KeyCode == checkKey and checkKey ~= Enum.KeyCode.Unknown then
-                if callback then callback("Trigger") end
+            if checkKey == Enum.KeyCode.Unknown then return end
+            if input.KeyCode ~= checkKey then return end
+
+            if blockKeyUntilRelease == checkKey then
+                return
+            end
+
+            if callback then
+                callback("Trigger")
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(input)
+            if blockKeyUntilRelease and input.KeyCode == blockKeyUntilRelease then
+                blockKeyUntilRelease = nil
             end
         end)
     end
@@ -1046,6 +1061,7 @@ local function AddExtras(parent, options, callback)
         end)
     end 
 end
+
 
     local first = true
     function WindowTable:Tab(name, iconid)
