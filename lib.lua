@@ -894,13 +894,6 @@ end
 -- ==========================================================
 -- SEU CÓDIGO ORIGINAL (AddExtras) - NÃO ALTERADO
 -- ==========================================================
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-
--- Certifique-se de que sua tabela 'Theme' esteja definida em algum lugar acima no seu script principal.
--- Exemplo (se não tiver):
--- local Theme = { SubText = Color3.fromRGB(150, 150, 150), ItemStroke = Color3.fromRGB(50,50,50) }
-
 local function AddExtras(parent, options, callback)
     if not options then return end
     
@@ -924,16 +917,11 @@ local function AddExtras(parent, options, callback)
         KeyBtn = Instance.new("TextButton", parent)
         KeyBtn.AutomaticSize = Enum.AutomaticSize.XY
         KeyBtn.Size = UDim2.fromOffset(0, 20)
-        -- Configuração de centralização vertical
         KeyBtn.AnchorPoint = Vector2.new(1, 0.5)
         KeyBtn.Position = UDim2.new(1, -10, 0.5, 0)
-        KeyBtn.TextYAlignment = Enum.TextYAlignment.Center
-
         KeyBtn.ZIndex = parent.ZIndex + 1 
-        -- Cor mais escura solicitada
-        KeyBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        -- Começa invisível (transparente)
-        KeyBtn.BackgroundTransparency = 1 
+        KeyBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        KeyBtn.BackgroundTransparency = 1
         KeyBtn.BorderSizePixel = 0
         
         local Corner = Instance.new("UICorner", KeyBtn)
@@ -942,8 +930,6 @@ local function AddExtras(parent, options, callback)
         local Padding = Instance.new("UIPadding", KeyBtn)
         Padding.PaddingLeft = UDim.new(0, 6)
         Padding.PaddingRight = UDim.new(0, 6)
-        Padding.PaddingTop = UDim.new(0, 1) -- Leve ajuste vertical se necessário
-        Padding.PaddingBottom = UDim.new(0, 1)
 
         local function getBindName(override)
             local key = override or (type(options.Keybind) == "table" and options.Keybind.Value or options.Keybind)
@@ -956,46 +942,42 @@ local function AddExtras(parent, options, callback)
         KeyBtn.Font = Enum.Font.GothamBold
         KeyBtn.TextSize = 12
 
-        -- Configuração da Animação (Tween)
-        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        -- Tween da caixinha preta
+        local function animateBox(show)
+            local goal = {
+                BackgroundTransparency = show and 0 or 1
+            }
+            TweenService:Create(
+                KeyBtn,
+                TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                goal
+            ):Play()
+        end
 
-        -- Função para resetar o visual do botão com animação (Fade Out)
         local function resetVisual()
             binding = false
             KeyBtn.Text = getBindName()
-            
-            local fadeOutTarget = {
-                BackgroundTransparency = 1, -- Volta a ficar invisível
-                TextColor3 = Theme.SubText    -- Volta para a cor de texto padrão
-            }
-            local tween = TweenService:Create(KeyBtn, tweenInfo, fadeOutTarget)
-            tween:Play()
+            KeyBtn.TextColor3 = Theme.SubText
+            animateBox(false)
         end
 
         KeyBtn.MouseButton1Click:Connect(function()
             if binding then return end
+            
             binding = true
             KeyBtn.Text = "..."
-
-            -- Animação de entrada (Fade In)
-            local fadeInTarget = {
-                BackgroundTransparency = 0, -- Mostra a caixinha preta
-                TextColor3 = Color3.fromRGB(0, 170, 255) -- Texto azul
-            }
-            local tween = TweenService:Create(KeyBtn, tweenInfo, fadeInTarget)
-            tween:Play()
+            KeyBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
+            animateBox(true)
             
             local conInput
-            task.wait() -- Aguarda um frame para não detectar o próprio clique
+            task.wait()
             
             conInput = UserInputService.InputBegan:Connect(function(input)
-                -- Se pressionar uma tecla do teclado
                 if input.UserInputType == Enum.UserInputType.Keyboard then
                     local selectedKey = input.KeyCode
                     
-                    -- Se apertar ESC, limpa o bind (KeyCode.Unknown)
-                    if selectedKey == Enum.KeyCode.Escape then 
-                        selectedKey = Enum.KeyCode.Unknown 
+                    if selectedKey == Enum.KeyCode.Escape then
+                        selectedKey = Enum.KeyCode.Unknown
                     end
                     
                     if type(options.Keybind) == "table" then 
@@ -1006,17 +988,25 @@ local function AddExtras(parent, options, callback)
                     
                     Library.Flags.Binds[flag] = selectedKey.Name
                     conInput:Disconnect()
-                    resetVisual() -- Chama a função que faz o fade out
-                
-                -- Se clicar com o mouse fora ou em qualquer lugar, cancela o bind
-                elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    resetVisual()
+
+                -- CLICK FORA = LIMPA KEY
+                elseif input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    
+                    if type(options.Keybind) == "table" then
+                        options.Keybind.Value = Enum.KeyCode.Unknown
+                    else
+                        options.Keybind = Enum.KeyCode.Unknown
+                    end
+                    
+                    Library.Flags.Binds[flag] = Enum.KeyCode.Unknown.Name
                     conInput:Disconnect()
-                    resetVisual() -- Chama a função que faz o fade out sem alterar a tecla
+                    resetVisual()
                 end
             end)
         end)
 
-        -- Detector de acionamento do bind
         UserInputService.InputBegan:Connect(function(input, gp)
             if gp or binding then return end
             local checkKey = (type(options.Keybind) == "table" and options.Keybind.Value) or options.Keybind
@@ -1026,7 +1016,7 @@ local function AddExtras(parent, options, callback)
         end)
     end
 
-    -- 2. COLOR PICKER (Mantido igual, só ajustando a posição relativa se houver bind)
+    -- 2. COLOR PICKER (inalterado)
     if options.Color then
         local ColorInd = Instance.new("TextButton", parent)
         ColorInd.Size = UDim2.fromOffset(20, 20)
@@ -1056,6 +1046,7 @@ local function AddExtras(parent, options, callback)
         end)
     end 
 end
+
     local first = true
     function WindowTable:Tab(name, iconid)
         local TabFuncs = {}
