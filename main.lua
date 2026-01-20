@@ -2766,6 +2766,8 @@ local ConfigMisc = {
     
 }
 
+MiscTab:Section("Tools")
+
 MiscTab:Button("Rejoin",function()
     local TeleportService = game:GetService("TeleportService")
 		local placeId = game.PlaceId
@@ -2811,6 +2813,8 @@ local text = string.format(
     setclipboard(text)
 end)
 
+MiscTab:Section("Loads")
+
 MiscTab:Button("Dex Explorer V5",function()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/zzerexx/Dex/refs/heads/master/main.lua"))()
 end)
@@ -2822,8 +2826,6 @@ end)
 MiscTab:Button("Remote Spy (Require 90% Sunc Executor)",function()
 loadstring(game:HttpGetAsync("https://github.com/richie0866/remote-spy/releases/latest/download/RemoteSpy.lua"))()
 end)
-
-
 
 
 Library:CreateSettings(Window)
