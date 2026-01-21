@@ -31,30 +31,37 @@ local function fetchPlayerTagFromDB(player)
 end
 
 local function createPrettyTag(player, head, tagText)
+    -- Limite de tamanho: Usando Scale para não ficar gigante na tela
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    gui.Size = UDim2.new(0, 180, 0, 40)
+    gui.Size = UDim2.new(4, 0, 1, 0) -- Tamanho fixo proporcional ao mundo
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
+    gui.MaxDistance = 50 -- Limita a distância que a tag some (evita poluição visual)
     gui.Parent = head
 
     local text = Instance.new("TextLabel")
     text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
     text.Font = Enum.Font.GothamBlack
-    text.TextSize = 15
+    text.TextScaled = true -- Faz o texto caber sempre dentro do limite da tag
     text.TextColor3 = Color3.new(1, 1, 1)
+    
+    -- Adiciona um Stroke (contorno) para ajudar na leitura
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1.5
+    stroke.Transparency = 0.5
+    stroke.Parent = text
     
     local cleanTag = tostring(tagText):upper()
     local grad = Instance.new("UIGradient")
     
-    -- Configuração de Cores e Ícones baseada no seu pedido
     if cleanTag:find("CREATOR") then
         text.Text = "👑 " .. cleanTag
         grad.Color = ColorSequence.new{
             ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Dourado
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 20)), -- Sombra Preta
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(184, 134, 11))  -- Amarelo Escuro
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(10, 10, 10)), -- Sombra Preta
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(139, 101, 8))   -- Amarelo Escuro
         }
     elseif cleanTag:find("BOOSTER") then
         text.Text = "🚀 " .. cleanTag
@@ -68,26 +75,25 @@ local function createPrettyTag(player, head, tagText)
         grad.Color = ColorSequence.new{
             ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
             ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),       -- Sombra Preta
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))  -- Cinza Claro
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))  -- Cinza
         }
     elseif cleanTag:find("VETERANO") then
         text.Text = "🛡️ " .. cleanTag
-        grad.Color = ColorSequence.new{ -- 5 Cores para Veterano
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),    -- Vermelho
-            ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 255, 0)),-- Amarelo
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),  -- Verde
-            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 255, 255)),-- Ciano
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))   -- Magenta
+        grad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+            ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 255, 0)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),
+            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 255, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
         }
     else
         text.Text = cleanTag
-        grad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.new(0.8,0.8,0.8))
+        grad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.new(0.7,0.7,0.7))
     end
     
     grad.Parent = text
     text.Parent = gui
 
-    -- Animação de movimento da sombra/brilho
     task.spawn(function()
         local t = 0
         while gui.Parent do
