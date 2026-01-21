@@ -1,19 +1,8 @@
 local Players = game:GetService("Players")
-local ALLOWED_PLACE = 17274762379
-local IS_ALLOWED = game.PlaceId == ALLOWED_PLACE
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local TextChatService = game:GetService("TextChatService")
-local MarketplaceService = game:GetService("MarketplaceService")
-local TeleportService = game:GetService("TeleportService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local Player = Players.LocalPlayer
-
-
 local TweenService = game:GetService("TweenService")
 
-
+-- Configurações de Tag
 local TagConfig = {
     Creator = {
         Priority = 3,
@@ -35,10 +24,12 @@ local TagConfig = {
     Veterano = {
         Priority = 1,
         Users = {
+            -- Adicione nomes aqui
         }
     }
 }
 
+-- Funções Auxiliares
 local function hasName(list, name)
     for _, v in ipairs(list) do
         if string.lower(v) == string.lower(name) then
@@ -60,7 +51,6 @@ local function getPlayerTag(player)
             end
         end
     end
-
     return best
 end
 
@@ -68,39 +58,40 @@ local function clearTag(char)
     local head = char:FindFirstChild("Head")
     if head then
         local old = head:FindFirstChild("DobeTag")
-        if old then
-            old:Destroy()
-        end
+        if old then old:Destroy() end
     end
 end
 
--- Substitua as funções originais por estas:
-
-local function createCreatorTag(head)
+-- Gerador de Base da UI (Para manter o padrão de "Tag" pequena e fixa)
+local function createBaseGui(head, sizeX, sizeY)
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    -- Define um tamanho fixo em pixels, mas limita a escala
-    gui.Size = UDim2.new(0, 180, 0, 35) 
+    gui.Size = UDim2.new(0, sizeX, 0, sizeY) -- Usando Offset (0, pixel) para não crescer com a distância
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
-    gui.MaxDistance = 100 -- Impede que seja vista do outro lado do mapa
+    gui.MaxDistance = 100 -- Desaparece se estiver muito longe
     gui.Parent = head
-
-    -- Container para a Tag (Fundo)
+    
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     frame.BackgroundTransparency = 0.2
     frame.BorderSizePixel = 0
     frame.Parent = gui
-
+    
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 6)
     corner.Parent = frame
+    
+    return gui, frame
+end
 
+-- TAG: CREATOR (Dourado com Brilho)
+local function createCreatorTag(head)
+    local gui, frame = createBaseGui(head, 180, 35)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    
     local stroke = Instance.new("UIStroke")
     stroke.Thickness = 2
-    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Color = Color3.fromRGB(255, 255, 255)
     stroke.Parent = frame
 
@@ -110,17 +101,16 @@ local function createCreatorTag(head)
     text.Text = "DOBE CREATOR"
     text.TextColor3 = Color3.new(1, 1, 1)
     text.Font = Enum.Font.GothamBlack
-    text.TextSize = 14 -- Tamanho fixo para parecer uma tag real
-    text.RichText = true
+    text.TextSize = 13
     text.Parent = frame
 
     local grad = Instance.new("UIGradient")
     grad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Dourado
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Brilho
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
     }
-    grad.Parent = stroke -- O gradiente agora afeta a borda (efeito premium)
+    grad.Parent = stroke
 
     task.spawn(function()
         local counter = 0
@@ -132,38 +122,25 @@ local function createCreatorTag(head)
     end)
 end
 
+-- TAG: BOOSTER (Rosa Estilo Pílula)
 local function createBoosterTag(head)
-    local gui = Instance.new("BillboardGui")
-    gui.Name = "DobeTag"
-    gui.Size = UDim2.new(0, 160, 0, 30)
-    gui.StudsOffset = Vector3.new(0, 3, 0)
-    gui.AlwaysOnTop = true
-    gui.MaxDistance = 80
-    gui.Parent = head
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
+    local gui, frame = createBaseGui(head, 160, 30)
     frame.BackgroundColor3 = Color3.fromRGB(255, 20, 147)
-    frame.BackgroundTransparency = 0.4
-    frame.Parent = gui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 20) -- Estilo pílula
-    corner.Parent = frame
-
+    frame.UICorner.CornerRadius = UDim.new(0, 20) -- Formato arredondado
+    
     local text = Instance.new("TextLabel")
     text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
     text.Text = "✦ SERVER BOOSTER"
     text.TextColor3 = Color3.new(1, 1, 1)
     text.Font = Enum.Font.GothamBold
-    text.TextSize = 12
+    text.TextSize = 11
     text.Parent = frame
 
     local grad = Instance.new("UIGradient")
     grad.Color = ColorSequence.new{
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 200))
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 150, 200))
     }
     grad.Parent = frame
 
@@ -174,37 +151,48 @@ local function createBoosterTag(head)
         end
     end)
 end
+
+-- TAG: VETERANO (Azul/Prata)
+local function createVeteranoTag(head)
+    local gui, frame = createBaseGui(head, 140, 28)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.Text = "VETERANO"
+    text.TextColor3 = Color3.fromRGB(200, 200, 200)
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 11
+    text.Parent = frame
+end
+
+-- Aplicação das Tags
 local function applyTag(player)
-    local tag = getPlayerTag(player)
-    if not tag then return end
-
-    player.CharacterAdded:Connect(function(char)
-        task.wait(0.3)
+    local function setup(char)
+        task.wait(0.5) -- Espera o personagem carregar totalmente
         clearTag(char)
-
+        
+        local tag = getPlayerTag(player)
+        if not tag then return end
+        
         local head = char:FindFirstChild("Head")
         if not head then return end
-
+        
         if tag == "Creator" then
             createCreatorTag(head)
         elseif tag == "Booster" then
             createBoosterTag(head)
-        end
-    end)
-
-    if player.Character then
-        clearTag(player.Character)
-        local head = player.Character:FindFirstChild("Head")
-        if head then
-            if tag == "Creator" then
-                createCreatorTag(head)
-            elseif tag == "Booster" then
-                createBoosterTag(head)
-            end
+        elseif tag == "Veterano" then
+            createVeteranoTag(head)
         end
     end
+
+    player.CharacterAdded:Connect(setup)
+    if player.Character then setup(player.Character) end
 end
 
+-- Inicialização
 for _, plr in ipairs(Players:GetPlayers()) do
     applyTag(plr)
 end
