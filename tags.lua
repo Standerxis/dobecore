@@ -4,7 +4,7 @@ local RunService = game:GetService("RunService")
 local TagConfig = {
     Creator = {
         Priority = 3,
-        Users = {"taylafofinha2", "Mv_Cap", "SolterYourBad"}
+        Users = {"taylafofinha2", "MV_CAP", "SolterYourBad"}
     },
     Booster = {
         Priority = 2,
