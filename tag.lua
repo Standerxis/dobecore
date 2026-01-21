@@ -35,8 +35,8 @@ local function createPrettyTag(player, head, tagText)
 
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    gui.Size = UDim2.new(0, 200, 0, 50)
-    gui.StudsOffset = Vector3.new(0, 3.5, 0) -- Um pouco mais alto para não colidir com o nome
+    gui.Size = UDim2.new(0, 250, 0, 50)
+    gui.StudsOffset = Vector3.new(0, 3.5, 0)
     gui.AlwaysOnTop = true
     gui.MaxDistance = 60
     gui.Parent = head
@@ -44,85 +44,76 @@ local function createPrettyTag(player, head, tagText)
     local text = Instance.new("TextLabel")
     text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
-    text.Font = Enum.Font.GothamBold -- Fonte mais limpa
-    text.TextScaled = false
-    text.TextSize = 18 -- Tamanho fixo fica mais "clean" que o Scaled
+    text.Font = Enum.Font.GothamBlack -- Fonte mais forte e clean
+    text.TextSize = 20
     text.TextColor3 = Color3.new(1, 1, 1)
+    text.TextStrokeTransparency = 1 -- Usando UIStroke em vez disso
     text.Parent = gui
     
     local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 2.5
-    stroke.Transparency = 0.2
+    stroke.Thickness = 2.8
     stroke.Color = Color3.fromRGB(0, 0, 0)
     stroke.Parent = text
     
     local grad = Instance.new("UIGradient")
     local cleanTag = tostring(tagText):upper()
     
-    -- Configuração de Estilos Premium
-    if cleanTag:find("CREATOR") then
-        text.Text = "👑 " .. cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 100)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 170, 0)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 230, 100))
-        }
-    elseif cleanTag:find("BOOSTER") then
+    -- PADRÃO DE CORES: Rosa -> Branco -> Rosa (Para Booster/Geral)
+    if cleanTag:find("BOOSTER") then
         text.Text = "🚀 " .. cleanTag
         grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 255))
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 200)),   -- Rosa Forte
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Branco
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 200))    -- Rosa Forte
         }
-    elseif cleanTag:find("INFLUENCER") then
-        text.Text = "🎥 " .. cleanTag
+    elseif cleanTag:find("CREATOR") then
+        text.Text = "👑 " .. cleanTag
         grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 180, 180)),
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 180, 0)),
             ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 150))
-        }
-    elseif cleanTag:find("VETERANO") then
-        text.Text = "🛡️ " .. cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 150, 0)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 180, 0))
         }
     else
         text.Text = cleanTag
-        grad.Color = ColorSequence.new(Color3.fromRGB(200, 200, 200), Color3.fromRGB(255, 255, 255))
+        grad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(150, 150, 150)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 150))
+        }
     end
     
     grad.Parent = text
 
-    -- Animação de Rotação (Efeito de brilho metálico)
+    -- Animação de Brilho (Desliza o gradiente suavemente)
     task.spawn(function()
+        local t = 0
         while gui.Parent do
-            grad.Rotation = grad.Rotation + 2
-            task.wait(0.02)
+            t = t + 0.02
+            -- Isso faz o gradiente "correr" pelo texto de forma infinita e suave
+            grad.Offset = Vector2.new(math.sin(t) * 0.5, 0) 
+            task.wait()
         end
     end)
 end
 
--- Função principal de aplicação
+-- Aplicação inicial e eventos
 local function applyTag(player)
     local function setup(char)
         local head = char:WaitForChild("Head", 15)
-        if not head then return end
-        
-        local tag = fetchPlayerTagFromDB(player)
-        PlayerTagCache[player.UserId] = tag
-        createPrettyTag(player, head, tag)
+        if head then
+            local tag = fetchPlayerTagFromDB(player)
+            PlayerTagCache[player.UserId] = tag
+            createPrettyTag(player, head, tag)
+        end
     end
     player.CharacterAdded:Connect(setup)
     if player.Character then task.spawn(setup, player.Character) end
 end
 
--- Inicialização
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
 Players.PlayerAdded:Connect(applyTag)
 
--- Loop de atualização (Otimizado para não pesar)
+-- Loop de atualização de banco de dados
 task.spawn(function()
     while true do
         task.wait(40)
