@@ -21,21 +21,19 @@ local function fetchPlayerTagFromDB(player)
         })
     end)
 
-    -- Corrigido: 200 é SUCESSO. Vamos processar o corpo da mensagem.
     if success and (response.StatusCode == 200 or response.Success) then
         local data = HttpService:JSONDecode(response.Body)
         if data and data.tag then
-            return data.tag -- Retorna "Server Booster" como mostrado no seu print
+            return data.tag
         end
     end
     return nil
 end
 
 local function createPrettyTag(player, head, tagText)
-    -- Se chegou aqui, o tagText já é "Server Booster"
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    gui.Size = UDim2.new(0, 160, 0, 40)
+    gui.Size = UDim2.new(0, 180, 0, 40)
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
     gui.Parent = head
@@ -44,35 +42,57 @@ local function createPrettyTag(player, head, tagText)
     text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
     text.Font = Enum.Font.GothamBlack
-    text.TextSize = 15 -- Aumentado para destaque
+    text.TextSize = 15
     text.TextColor3 = Color3.new(1, 1, 1)
     
-    -- Lógica de exibição baseada no seu print
     local cleanTag = tostring(tagText):upper()
-    if cleanTag:find("BOOSTER") then
-        text.Text = "🚀 " .. cleanTag
-    elseif cleanTag:find("CREATOR") then
+    local grad = Instance.new("UIGradient")
+    
+    -- Configuração de Cores e Ícones baseada no seu pedido
+    if cleanTag:find("CREATOR") then
         text.Text = "👑 " .. cleanTag
+        grad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Dourado
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 20)), -- Sombra Preta
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(184, 134, 11))  -- Amarelo Escuro
+        }
+    elseif cleanTag:find("BOOSTER") then
+        text.Text = "🚀 " .. cleanTag
+        grad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 20, 147)), -- Rosa
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Sombra Branca
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 105, 180))  -- Rosa Claro
+        }
+    elseif cleanTag:find("INFLUENCER") then
+        text.Text = "🎥 " .. cleanTag
+        grad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),       -- Sombra Preta
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))  -- Cinza Claro
+        }
+    elseif cleanTag:find("VETERANO") then
+        text.Text = "🛡️ " .. cleanTag
+        grad.Color = ColorSequence.new{ -- 5 Cores para Veterano
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),    -- Vermelho
+            ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 255, 0)),-- Amarelo
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),  -- Verde
+            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 255, 255)),-- Ciano
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))   -- Magenta
+        }
     else
         text.Text = cleanTag
+        grad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.new(0.8,0.8,0.8))
     end
     
+    grad.Parent = text
     text.Parent = gui
 
-    -- Gradiente animado para o Server Booster
-    local grad = Instance.new("UIGradient")
-    grad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)), -- Rosa Booster
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 255))
-    }
-    grad.Parent = text
-
+    -- Animação de movimento da sombra/brilho
     task.spawn(function()
         local t = 0
         while gui.Parent do
-            t = t + 0.02
-            grad.Offset = Vector2.new(math.sin(t), 0)
+            t = t + 0.03
+            grad.Offset = Vector2.new(math.sin(t) * 1.5, 0)
             RunService.RenderStepped:Wait()
         end
     end)
