@@ -60,7 +60,7 @@ local function createPrettyTag(player, head, tagType)
     -- Limita o tamanho máximo do texto para não ficar exagerado
     local sizeConstraint = Instance.new("UITextSizeConstraint")
     sizeConstraint.MaxTextSize = 18 -- Tamanho aumentado conforme solicitado
-    sizeConstraint.MinTextSize = 12
+    sizeConstraint.MinTextSize = 18
     sizeConstraint.Parent = text
     
     text.Parent = gui
