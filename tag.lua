@@ -1,14 +1,14 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-print("carregou parte 1")
+
 local TagConfig = {
     Creator = {
-        Priority = 4, -- Aumentado para manter no topo
-        Users = {"taylafofinha2", "SolterYourBad","Mv_Cap"}
+        Priority = 4,
+        Users = {"taylafofinha2", "SolterYourBad","MV_CAP"}
     },
     Influencer = {
         Priority = 3,
-        Users = {"greenlauren"} -- Adicione os nomes aqui
+        Users = {"greenlauren1"} 
     },
     Booster = {
         Priority = 2,
@@ -26,7 +26,8 @@ local function hasName(list, name)
     end
     return false
 end
-print("carregou parte 2")
+
+
 local function getPlayerTag(player)
     local best = nil
     local bestPriority = -1
@@ -40,7 +41,8 @@ local function getPlayerTag(player)
     end
     return best
 end
-print("carregou parte 3")
+
+
 local function clearTag(char)
     local head = char:FindFirstChild("Head")
     if head then
@@ -48,7 +50,8 @@ local function clearTag(char)
         if old then old:Destroy() end
     end
 end
-print("carregou parte 4")
+
+
 local function createPrettyTag(head, tagType)
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
@@ -88,25 +91,35 @@ local function createPrettyTag(head, tagType)
         end)
 
     elseif tagType == "Influencer" then
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
-        frame.BorderSizePixel = 0
-        frame.BackgroundColor3 = Color3.fromRGB(173, 216, 230) -- Azul claro/Ciano
-        frame.BackgroundTransparency = 0.15
-        frame.Parent = gui
-
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(1, 0)
-        corner.Parent = frame
-
+        -- Estilo idêntico ao Creator (sem frame de fundo)
         local text = Instance.new("TextLabel")
         text.Size = UDim2.new(1, 0, 1, 0)
         text.BackgroundTransparency = 1
+        text.BorderSizePixel = 0
         text.Font = Enum.Font.GothamBlack
-        text.TextSize = 10
-        text.TextColor3 = Color3.new(1, 1, 1)
+        text.TextSize = 12
+        text.TextColor3 = Color3.new(1, 1, 1) -- Texto Branco
         text.Text = "🎥 INFLUENCER"
-        text.Parent = frame
+        text.Parent = gui
+
+        -- Gradiente animado aplicado ao texto (mesmo efeito do Creator)
+        local textGrad = Instance.new("UIGradient")
+        textGrad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 150, 150)), -- Cinza claro (para o efeito de brilho)
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))  -- Branco
+        }
+        textGrad.Parent = text
+
+        task.spawn(function()
+            local offsetText = -1
+            while gui.Parent do
+                offsetText = offsetText + 0.015
+                if offsetText > 1 then offsetText = -1 end
+                textGrad.Offset = Vector2.new(offsetText, 0)
+                RunService.RenderStepped:Wait()
+            end
+        end)
 
     elseif tagType == "Booster" then
         local frame = Instance.new("Frame")
@@ -141,7 +154,8 @@ local function createPrettyTag(head, tagType)
         end)
     end
 end
-print("carregou parte 5")
+
+
 local function applyTag(player)
     local function onCharacter(char)
         task.wait(0.6)
@@ -154,11 +168,12 @@ local function applyTag(player)
             end
         end
     end
-print("carregou parte 6")
+
     player.CharacterAdded:Connect(onCharacter)
     if player.Character then task.spawn(onCharacter, player.Character) end
 end
-print("carregou parte 7")
+
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
 Players.PlayerAdded:Connect(applyTag)
+
 print("carregou parte 8")
