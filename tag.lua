@@ -4,15 +4,15 @@ print("carregou parte 1")
 local TagConfig = {
     Creator = {
         Priority = 4, -- Aumentado para manter no topo
-        Users = {"taylafofinha2","Mv_Cap", "SolterYourBad"}
+        Users = {"taylafofinha2", "SolterYourBad"}
     },
     Influencer = {
         Priority = 3,
-        Users = {} -- Adicione os nomes aqui
+        Users = {"Mv_Cap"} -- Adicione os nomes aqui
     },
     Booster = {
         Priority = 2,
-        Users = {"taylafofinha2", "Mv_Cap", "greenlauren1","leooswzx"}
+        Users = {"greenlauren1","leooswzx"}
     },
     Veterano = {
         Priority = 1,
