@@ -12,7 +12,7 @@ local TagConfig = {
     },
     Booster = {
         Priority = 2,
-        Users = {"taylafofinha2", "Mv_Cap", "greenlauren1"}
+        Users = {"taylafofinha2", "Mv_Cap", "greenlauren1","leooswzx"}
     },
     Veterano = {
         Priority = 1,
