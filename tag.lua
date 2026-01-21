@@ -1,6 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-
+print("carregou parte 1")
 local TagConfig = {
     Creator = {
         Priority = 4, -- Aumentado para manter no topo
@@ -26,7 +26,7 @@ local function hasName(list, name)
     end
     return false
 end
-
+print("carregou parte 2")
 local function getPlayerTag(player)
     local best = nil
     local bestPriority = -1
@@ -40,7 +40,7 @@ local function getPlayerTag(player)
     end
     return best
 end
-
+print("carregou parte 3")
 local function clearTag(char)
     local head = char:FindFirstChild("Head")
     if head then
@@ -48,7 +48,7 @@ local function clearTag(char)
         if old then old:Destroy() end
     end
 end
-
+print("carregou parte 4")
 local function createPrettyTag(head, tagType)
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
@@ -141,7 +141,7 @@ local function createPrettyTag(head, tagType)
         end)
     end
 end
-
+print("carregou parte 5")
 local function applyTag(player)
     local function onCharacter(char)
         task.wait(0.6)
@@ -154,10 +154,11 @@ local function applyTag(player)
             end
         end
     end
-
+print("carregou parte 6")
     player.CharacterAdded:Connect(onCharacter)
     if player.Character then task.spawn(onCharacter, player.Character) end
 end
-
+print("carregou parte 7")
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
 Players.PlayerAdded:Connect(applyTag)
+print("carregou parte 8")
