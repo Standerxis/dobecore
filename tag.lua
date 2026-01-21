@@ -44,59 +44,56 @@ local function createPrettyTag(player, head, tagText)
     local text = Instance.new("TextLabel")
     text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
-    text.Font = Enum.Font.GothamBlack -- Fonte mais forte e clean
-    text.TextSize = 20
+    text.Font = Enum.Font.GothamBlack
+    text.TextSize = 22 -- Aumentei um pouco já que não tem outline
     text.TextColor3 = Color3.new(1, 1, 1)
-    text.TextStrokeTransparency = 1 -- Usando UIStroke em vez disso
     text.Parent = gui
     
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 2.8
-    stroke.Color = Color3.fromRGB(0, 0, 0)
-    stroke.Parent = text
+    -- Outline removido conforme solicitado
     
     local grad = Instance.new("UIGradient")
     local cleanTag = tostring(tagText):upper()
     
-    -- PADRÃO DE CORES: Rosa -> Branco -> Rosa (Para Booster/Geral)
-    if cleanTag:find("BOOSTER") then
-        text.Text = "🚀 " .. cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 200)),   -- Rosa Forte
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Branco
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 200))    -- Rosa Forte
-        }
-    elseif cleanTag:find("CREATOR") then
+    -- PADRÃO: COR 1 -> BRANCO (COR 2) -> COR 1
+    local mainColor
+    
+    if cleanTag:find("CREATOR") then
         text.Text = "👑 " .. cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 180, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 180, 0))
-        }
+        mainColor = Color3.fromRGB(255, 180, 0) -- Dourado
+    elseif cleanTag:find("BOOSTER") then
+        text.Text = "🚀 " .. cleanTag
+        mainColor = Color3.fromRGB(255, 0, 200) -- Rosa
+    elseif cleanTag:find("INFLUENCER") then
+        text.Text = "🎥 " .. cleanTag
+        mainColor = Color3.fromRGB(0, 200, 255) -- Azul Ciano
+    elseif cleanTag:find("VETERANO") then
+        text.Text = "🛡️ " .. cleanTag
+        mainColor = Color3.fromRGB(255, 0, 0) -- Vermelho
     else
         text.Text = cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(150, 150, 150)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 150))
-        }
+        mainColor = Color3.fromRGB(150, 150, 150) -- Cinza
     end
+
+    grad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, mainColor),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Branco sempre no meio
+        ColorSequenceKeypoint.new(1, mainColor)
+    }
     
     grad.Parent = text
 
-    -- Animação de Brilho (Desliza o gradiente suavemente)
+    -- Animação de Brilho Suave
     task.spawn(function()
         local t = 0
         while gui.Parent do
-            t = t + 0.02
-            -- Isso faz o gradiente "correr" pelo texto de forma infinita e suave
-            grad.Offset = Vector2.new(math.sin(t) * 0.5, 0) 
+            t = t + 0.03
+            grad.Offset = Vector2.new(math.sin(t) * 0.6, 0) 
             task.wait()
         end
     end)
 end
 
--- Aplicação inicial e eventos
+-- Lógica de Aplicação
 local function applyTag(player)
     local function setup(char)
         local head = char:WaitForChild("Head", 15)
@@ -113,7 +110,7 @@ end
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
 Players.PlayerAdded:Connect(applyTag)
 
--- Loop de atualização de banco de dados
+-- Loop de verificação (40s)
 task.spawn(function()
     while true do
         task.wait(40)
