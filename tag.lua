@@ -3,14 +3,13 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
 local API_URL = "https://bzaanfwkntyekealgiwi.supabase.co/functions/v1/api/players/" 
-local INGEST_KEY = "dobecore_secret" -- Certifique-se que esta chave é a mesma da imagem
+local INGEST_KEY = "dobecore_secret"
 
 _G.TagsVisible = _G.TagsVisible or true
 _G.MyTagVisible = _G.MyTagVisible or true
 local PlayerTagCache = {}
 
 local function fetchPlayerTagFromDB(player)
-    -- Usa a função de request do executor para evitar o erro de "blocked function"
     local req = (syn and syn.request) or (http and http.request) or request or http_request
     if not req then return nil end
 
@@ -22,18 +21,18 @@ local function fetchPlayerTagFromDB(player)
         })
     end)
 
-    -- Corrigido: Agora aceita o status 200 como sucesso
+    -- Corrigido: 200 é SUCESSO. Vamos processar o corpo da mensagem.
     if success and (response.StatusCode == 200 or response.Success) then
         local data = HttpService:JSONDecode(response.Body)
-        print("[DOBE DEBUG] Tag encontrada para " .. player.Name .. ": " .. tostring(data.tag))
-        return data.tag
+        if data and data.tag then
+            return data.tag -- Retorna "Server Booster" como mostrado no seu print
+        end
     end
     return nil
 end
 
 local function createPrettyTag(player, head, tagText)
-    if not tagText or tagText == "" or tagText == "Nenhuma" then return end
-
+    -- Se chegou aqui, o tagText já é "Server Booster"
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
     gui.Size = UDim2.new(0, 160, 0, 40)
@@ -45,32 +44,51 @@ local function createPrettyTag(player, head, tagText)
     text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
     text.Font = Enum.Font.GothamBlack
-    text.TextSize = 14
+    text.TextSize = 15 -- Aumentado para destaque
     text.TextColor3 = Color3.new(1, 1, 1)
     
-    -- Formatação de ícones
-    local cleanTag = tagText:upper()
-    if cleanTag:find("SERVER BOOSTER") then text.Text = "🚀 " .. cleanTag 
-    elseif cleanTag:find("CREATOR") then text.Text = "👑 " .. cleanTag
-    else text.Text = cleanTag end
+    -- Lógica de exibição baseada no seu print
+    local cleanTag = tostring(tagText):upper()
+    if cleanTag:find("BOOSTER") then
+        text.Text = "🚀 " .. cleanTag
+    elseif cleanTag:find("CREATOR") then
+        text.Text = "👑 " .. cleanTag
+    else
+        text.Text = cleanTag
+    end
     
     text.Parent = gui
-    print("[DOBE DEBUG] Tag visual aplicada com sucesso em " .. player.Name)
+
+    -- Gradiente animado para o Server Booster
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)), -- Rosa Booster
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 255))
+    }
+    grad.Parent = text
+
+    task.spawn(function()
+        local t = 0
+        while gui.Parent do
+            t = t + 0.02
+            grad.Offset = Vector2.new(math.sin(t), 0)
+            RunService.RenderStepped:Wait()
+        end
+    end)
 end
 
 local function applyTag(player)
-    player.CharacterAdded:Connect(function(char)
-        local head = char:WaitForChild("Head", 10)
+    local function setup(char)
+        local head = char:WaitForChild("Head", 15)
         local tag = fetchPlayerTagFromDB(player)
-        if tag then createPrettyTag(player, head, tag) end
-    end)
-    if player.Character then 
-        local head = player.Character:FindFirstChild("Head")
-        if head then
-            local tag = fetchPlayerTagFromDB(player)
-            if tag then createPrettyTag(player, head, tag) end
+        if tag and tag ~= "Nenhuma" then
+            if head:FindFirstChild("DobeTag") then head.DobeTag:Destroy() end
+            createPrettyTag(player, head, tag)
         end
     end
+    player.CharacterAdded:Connect(setup)
+    if player.Character then task.spawn(setup, player.Character) end
 end
 
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
