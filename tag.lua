@@ -23,68 +23,72 @@ local function fetchPlayerTagFromDB(player)
 
     if success and (response.StatusCode == 200 or response.Success) then
         local data = HttpService:JSONDecode(response.Body)
-        if data and data.tag then
-            return data.tag
-        end
+        return data and data.tag or nil
     end
     return nil
 end
 
-local function createPrettyTag(player, head, tagText)
-    -- Se a tag já existe, remove para atualizar
-    local oldTag = head:FindFirstChild("DobeTag")
-    if oldTag then oldTag:Destroy() end
+local function createPrettyTag(player, head, tagType)
+    if not tagType or tagType == "" or tagType == "Nenhuma" then return end
 
-    if not tagText or tagText == "Nenhuma" then return end
+    -- Remove tag antiga se existir
+    local old = head:FindFirstChild("DobeTag")
+    if old then old:Destroy() end
 
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    gui.Size = UDim2.new(4, 0, 1, 0)
+    -- Voltando para o tamanho da sua UI original:
+    gui.Size = UDim2.new(0, 140, 0, 30) 
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
-    gui.MaxDistance = 50
+    gui.MaxDistance = 80 -- Mantendo seu MaxDistance original
+    
+    -- Controle de visibilidade global
+    if not _G.TagsVisible then
+        gui.Enabled = false
+    elseif player == Players.LocalPlayer and not _G.MyTagVisible then
+        gui.Enabled = false
+    end
+    
     gui.Parent = head
 
     local text = Instance.new("TextLabel")
     text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
+    text.BorderSizePixel = 0
     text.Font = Enum.Font.GothamBlack
-    text.TextScaled = true
+    text.TextSize = 12 -- Sua TextSize original
     text.TextColor3 = Color3.new(1, 1, 1)
-    
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 1.5
-    stroke.Transparency = 0.5
-    stroke.Parent = text
-    
-    local cleanTag = tostring(tagText):upper()
-    local grad = Instance.new("UIGradient")
-    
-    -- Configuração de Cores solicitada
+    text.Parent = gui
+
+    local textGrad = Instance.new("UIGradient")
+    local cleanTag = tagType:upper()
+
+    -- CONFIGURAÇÃO DE CORES EXATA DO SEU PEDIDO
     if cleanTag:find("CREATOR") then
         text.Text = "👑 " .. cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(10, 10, 10)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(139, 101, 8))
+        textGrad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Dourado
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 20)), -- Sombra Preta
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))   -- Dourado
         }
     elseif cleanTag:find("BOOSTER") then
         text.Text = "🚀 " .. cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 20, 147)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 105, 180))
+        textGrad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 20, 147)), -- Rosa
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Sombra Branca
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 20, 147))
         }
     elseif cleanTag:find("INFLUENCER") then
         text.Text = "🎥 " .. cleanTag
-        grad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))
+        textGrad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),       -- Sombra Preta
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
         }
     elseif cleanTag:find("VETERANO") then
         text.Text = "🛡️ " .. cleanTag
-        grad.Color = ColorSequence.new{
+        textGrad.Color = ColorSequence.new{ -- 5 cores
             ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
             ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 255, 0)),
             ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),
@@ -93,55 +97,50 @@ local function createPrettyTag(player, head, tagText)
         }
     else
         text.Text = cleanTag
-        grad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.new(0.7,0.7,0.7))
+        textGrad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.new(0.6,0.6,0.6))
     end
     
-    grad.Parent = text
-    text.Parent = gui
+    textGrad.Parent = text
 
+    -- Sua animação original de RenderStepped
     task.spawn(function()
-        local t = 0
+        local offsetText = -1
         while gui.Parent do
-            t = t + 0.03
-            grad.Offset = Vector2.new(math.sin(t) * 1.5, 0)
+            offsetText = offsetText + 0.015 -- Sua velocidade original
+            if offsetText > 1 then offsetText = -1 end
+            textGrad.Offset = Vector2.new(offsetText, 0)
             RunService.RenderStepped:Wait()
         end
     end)
 end
 
--- Função principal de aplicação
 local function applyTag(player)
-    local function setup(char)
-        local head = char:WaitForChild("Head", 15)
-        if not head then return end
-        
-        local tag = fetchPlayerTagFromDB(player)
-        PlayerTagCache[player.UserId] = tag
-        createPrettyTag(player, head, tag)
+    local function onCharacter(char)
+        task.wait(0.6)
+        local head = char:WaitForChild("Head", 10)
+        if head then
+            local tag = fetchPlayerTagFromDB(player)
+            PlayerTagCache[player.UserId] = tag
+            createPrettyTag(player, head, tag)
+        end
     end
-    player.CharacterAdded:Connect(setup)
-    if player.Character then task.spawn(setup, player.Character) end
+    player.CharacterAdded:Connect(onCharacter)
+    if player.Character then task.spawn(onCharacter, player.Character) end
 end
 
--- Inicialização
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
 Players.PlayerAdded:Connect(applyTag)
 
--- LOOP DE ATUALIZAÇÃO EM TEMPO REAL (A cada 40 segundos)
+-- LOOP DE ATUALIZAÇÃO (Reinserido)
 task.spawn(function()
     while true do
         task.wait(40)
         for _, plr in ipairs(Players:GetPlayers()) do
-            local currentTag = fetchPlayerTagFromDB(plr)
-            
-            -- Se a tag no banco mudou em relação ao que temos salvo
-            if currentTag ~= PlayerTagCache[plr.UserId] then
-                PlayerTagCache[plr.UserId] = currentTag
-                
-                local char = plr.Character
-                local head = char and char:FindFirstChild("Head")
-                if head then
-                    createPrettyTag(plr, head, currentTag)
+            local newTag = fetchPlayerTagFromDB(plr)
+            if newTag ~= PlayerTagCache[plr.UserId] then
+                PlayerTagCache[plr.UserId] = newTag
+                if plr.Character and plr.Character:FindFirstChild("Head") then
+                    createPrettyTag(plr, plr.Character.Head, newTag)
                 end
             end
         end
