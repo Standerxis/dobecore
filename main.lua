@@ -250,18 +250,26 @@ end)
     Otimizado para resoluções Mobile e Monitores UltraWide
 ]]
 
+--[[
+    SCRIPT AUTOFISH FISCH - VERSÃO RESTAURADA E COMPATÍVEL
+]]
+
+PescaTab:Section("Autos")
+
+--[[
+    SCRIPT AUTOFISH FISCH - ADAPTADO PARA TODAS AS TELAS
+    Correção: Restaurada a integração com ConfigPesca.AutoPescaKey
+]]
+
 local S = {
     Players = game:GetService("Players"),
     RunService = game:GetService("RunService"),
     ReplicatedStorage = game:GetService("ReplicatedStorage"),
     VIM = game:GetService("VirtualInputManager"),
-    GuiService = game:GetService("GuiService") -- Adicionado para precisão de clique
+    GuiService = game:GetService("GuiService") -- Essencial para Mobile/Telas com Inset
 }
 local Player = S.Players.LocalPlayer
 
--- ==========================================
--- CONFIGURAÇÃO E ESTADO
--- ==========================================
 local Bot = {
     Enabled = false,
     Selling = false,
@@ -274,23 +282,23 @@ local Bot = {
 }
 
 -- =========================
--- FUNÇÕES DE SUPORTE (CORRIGIDAS PARA ESCALA)
+-- FUNÇÕES DE SUPORTE (Resolução Independente)
 -- =========================
 local function GetCenter(inst)
     if not inst then return Vector2.new(0,0) end
-    -- Uso do AbsolutePosition garante que pegamos a posição real na tela, independente da escala do celular ou monitor
-    local pos = inst.AbsolutePosition
-    local size = inst.AbsoluteSize
-    -- Adicionamos o GuiInset para que o clique ocorra exatamente onde o elemento visual está
-    local inset = S.GuiService:GetGuiInset()
-    return Vector2.new(pos.X + size.X / 2 + inset.X, pos.Y + size.Y / 2 + inset.Y)
+    -- AbsolutePosition e AbsoluteSize garantem a posição correta em qualquer monitor ou celular
+    return Vector2.new(inst.AbsolutePosition.X + inst.AbsoluteSize.X / 2, inst.AbsolutePosition.Y + inst.AbsoluteSize.Y / 2)
 end
 
 local function Click(x, y)
-    -- Simula o toque/clique na posição exata calculada
-    S.VIM:SendMouseButtonEvent(x, y, 0, true, game, 1)
+    -- O GuiInset compensa a barra superior do Roblox (evita cliques deslocados no Mobile)
+    local inset = S.GuiService:GetGuiInset()
+    local finalX = x + inset.X
+    local finalY = y + inset.Y
+    
+    S.VIM:SendMouseButtonEvent(finalX, finalY, 0, true, game, 1)
     task.wait(0.05)
-    S.VIM:SendMouseButtonEvent(x, y, 0, false, game, 1)
+    S.VIM:SendMouseButtonEvent(finalX, finalY, 0, false, game, 1)
 end
 
 local function GetRemote()
@@ -370,14 +378,24 @@ local function StartBot()
     Bot.Selling = false
     Bot.MinigameActive = false
     
+    if NotificationService then
+        NotificationService:Create("AutoFish", "🎯 Autofish Completo Ativado!")
+    end
+
     DoAction("Throw")
 
     task.spawn(function()
         while Bot.Enabled do
             if not Bot.Selling then
                 local cur, max = GetFishStats()
-                if cur and max and cur >= max then
-                    DoAction("Sell")
+                if cur and max then
+                    if NotificationService then
+                        NotificationService:Update("AutoFish", ("Auto Fish Ativo! | Peixes: %d / %d 🐟"):format(cur, max))
+                    end
+
+                    if cur >= max then
+                        DoAction("Sell")
+                    end
                 end
             end
             task.wait(2)
@@ -389,11 +407,11 @@ local function StartBot()
 
         local gui = Player.PlayerGui
         
-        -- Fisgada (Hook) - Adaptado para Mobile/PC
+        -- Fisgada (Hook)
         local hook = gui:FindFirstChild("HookMeter")
         if hook and (os.clock() - Bot.LastHookClick >= Bot.HookCooldown) then
             local mid = hook:FindFirstChild("MiddleCircle", true)
-            if mid and mid.Visible then
+            if mid then
                 Bot.LastHookClick = os.clock()
                 local c = GetCenter(mid)
                 Click(c.X, c.Y)
@@ -407,7 +425,6 @@ local function StartBot()
             local moving, target
             for _, v in ipairs(img:GetDescendants()) do
                 if v:IsA("Frame") then
-                    -- Cores do Fisch para detecção
                     if v.BackgroundColor3 == Color3.fromRGB(242, 84, 84) then moving = v
                     elseif v.BackgroundColor3 == Color3.fromRGB(67, 200, 120) then target = v end
                 end
@@ -416,24 +433,23 @@ local function StartBot()
             if moving and target then
                 Bot.MinigameActive = true
                 local mX = GetCenter(moving).X
-                local targetPos = GetCenter(target)
-                local delta = mX - targetPos.X
+                local tX = GetCenter(target).X
+                local delta = mX - tX
 
-                -- Lógica de clique baseada na inversão de direção (mais estável em telas grandes)
-                if Bot.LastDelta and math.sign(Bot.LastDelta) ~= math.sign(delta) and (tick() - Bot.LastClick > 0.1) then
+                if Bot.LastDelta and math.sign(Bot.LastDelta) ~= math.sign(delta) and tick() - Bot.LastClick > 0.1 then
                     Bot.LastClick = tick()
-                    Click(targetPos.X, targetPos.Y)
+                    Click(tX, GetCenter(target).Y)
                 end
                 Bot.LastDelta = delta
             end
         elseif Bot.MinigameActive then
             Bot.MinigameActive = false
             Bot.LastDelta = nil
-            task.wait(1.2)
+            task.wait(1.5)
             local r = GetRemote()
             if r then r:FireServer("FishDecision", true) end
             
-            task.wait(1.0)
+            task.wait(1.2)
             if Bot.Enabled and not Bot.Selling then 
                 DoAction("Throw") 
             end
@@ -442,21 +458,25 @@ local function StartBot()
 end
 
 -- =========================
--- UI TOGGLE (Integração com sua aba)
+-- UI TOGGLE (RESTAURADA)
 -- =========================
 PescaTab:Toggle("Autofish Full", false, function(state)
     Bot.Enabled = state
     if state then
         StartBot()
     else
+        if NotificationService then
+            NotificationService:Remove("AutoFish")
+        end
         if Bot.Conn then 
             Bot.Conn:Disconnect() 
             Bot.Conn = nil 
         end
     end
 end, {
-    Keybind = { Value = ConfigPesca.AutoPescaKey }
+    Keybind = { Value = ConfigPesca.AutoPescaKey } -- RESTAURADO: Agora usa sua config original
 })
+end
 -- [TRECHO DO TELEPORT]
 local TeleportTab = Window:Tab("Teleport","rbxassetid://10734886004")
 
@@ -2931,4 +2951,3 @@ Library:CreateSettings(Window)
 print("Requires: DobeInsert, Executors: ALL, InjectionMode: Direct")
 print("Internal game, qol: 70%")
 print("All Cores loaded")
-
