@@ -74,36 +74,59 @@ local function clearTag(char)
     end
 end
 
+-- Substitua as funções originais por estas:
+
 local function createCreatorTag(head)
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    gui.Size = UDim2.new(0,220,0,42)
-    gui.StudsOffset = Vector3.new(0,2.8,0)
+    -- Define um tamanho fixo em pixels, mas limita a escala
+    gui.Size = UDim2.new(0, 180, 0, 35) 
+    gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
+    gui.MaxDistance = 100 -- Impede que seja vista do outro lado do mapa
     gui.Parent = head
 
+    -- Container para a Tag (Fundo)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    frame.BackgroundTransparency = 0.2
+    frame.BorderSizePixel = 0
+    frame.Parent = gui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Parent = frame
+
     local text = Instance.new("TextLabel")
-    text.Size = UDim2.new(1,0,1,0)
+    text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
-    text.Text = "DOBECORE CREATOR"
-    text.TextScaled = true
+    text.Text = "DOBE CREATOR"
+    text.TextColor3 = Color3.new(1, 1, 1)
     text.Font = Enum.Font.GothamBlack
-    text.TextColor3 = Color3.new(1,1,1)
-    text.TextStrokeTransparency = 0.85
-    text.TextStrokeColor3 = Color3.new(0,0,0)
-    text.Parent = gui
+    text.TextSize = 14 -- Tamanho fixo para parecer uma tag real
+    text.RichText = true
+    text.Parent = frame
 
     local grad = Instance.new("UIGradient")
     grad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.new(0,0,0)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40,40,40)),
-        ColorSequenceKeypoint.new(1, Color3.new(0,0,0))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Dourado
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Brilho
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
     }
-    grad.Parent = text
+    grad.Parent = stroke -- O gradiente agora afeta a borda (efeito premium)
 
     task.spawn(function()
+        local counter = 0
         while gui.Parent do
-            grad.Offset = Vector2.new((grad.Offset.X + 0.01) % 1, 0)
+            counter = counter + 0.02
+            grad.Offset = Vector2.new(math.sin(counter), 0)
             RunService.RenderStepped:Wait()
         end
     end)
@@ -112,36 +135,45 @@ end
 local function createBoosterTag(head)
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    gui.Size = UDim2.new(0,200,0,40)
-    gui.StudsOffset = Vector3.new(0,2.6,0)
+    gui.Size = UDim2.new(0, 160, 0, 30)
+    gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
+    gui.MaxDistance = 80
     gui.Parent = head
 
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(255, 20, 147)
+    frame.BackgroundTransparency = 0.4
+    frame.Parent = gui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 20) -- Estilo pílula
+    corner.Parent = frame
+
     local text = Instance.new("TextLabel")
-    text.Size = UDim2.new(1,0,1,0)
+    text.Size = UDim2.new(1, 0, 1, 0)
     text.BackgroundTransparency = 1
-    text.Text = "SERVER BOOSTER"
-    text.TextScaled = true
+    text.Text = "✦ SERVER BOOSTER"
+    text.TextColor3 = Color3.new(1, 1, 1)
     text.Font = Enum.Font.GothamBold
-    text.TextColor3 = Color3.fromRGB(255,120,200)
-    text.Parent = gui
+    text.TextSize = 12
+    text.Parent = frame
 
     local grad = Instance.new("UIGradient")
     grad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,120,200)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,190,230)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,120,200))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 200))
     }
-    grad.Parent = text
+    grad.Parent = frame
 
     task.spawn(function()
         while gui.Parent do
-            grad.Rotation = (grad.Rotation + 1.5) % 360
+            grad.Rotation = (grad.Rotation + 2) % 360
             RunService.RenderStepped:Wait()
         end
     end)
 end
-
 local function applyTag(player)
     local tag = getPlayerTag(player)
     if not tag then return end
