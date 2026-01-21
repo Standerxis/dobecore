@@ -31,19 +31,16 @@ end
 local function createPrettyTag(player, head, tagType)
     if not tagType or tagType == "" or tagType == "Nenhuma" then return end
 
-    -- Remove tag antiga se existir
     local old = head:FindFirstChild("DobeTag")
     if old then old:Destroy() end
 
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
-    -- Voltando para o tamanho da sua UI original:
-    gui.Size = UDim2.new(0, 140, 0, 30) 
+    gui.Size = UDim2.new(0, 160, 0, 35) -- Aumentei levemente a caixa para o texto maior caber melhor
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
-    gui.MaxDistance = 80 -- Mantendo seu MaxDistance original
+    gui.MaxDistance = 80
     
-    -- Controle de visibilidade global
     if not _G.TagsVisible then
         gui.Enabled = false
     elseif player == Players.LocalPlayer and not _G.MyTagVisible then
@@ -57,38 +54,45 @@ local function createPrettyTag(player, head, tagType)
     text.BackgroundTransparency = 1
     text.BorderSizePixel = 0
     text.Font = Enum.Font.GothamBlack
-    text.TextSize = 12 -- Sua TextSize original
+    text.TextScaled = true -- Ativado para garantir tamanho máximo
     text.TextColor3 = Color3.new(1, 1, 1)
+    
+    -- Limita o tamanho máximo do texto para não ficar exagerado
+    local sizeConstraint = Instance.new("UITextSizeConstraint")
+    sizeConstraint.MaxTextSize = 18 -- Tamanho aumentado conforme solicitado
+    sizeConstraint.MinTextSize = 12
+    sizeConstraint.Parent = text
+    
     text.Parent = gui
 
     local textGrad = Instance.new("UIGradient")
     local cleanTag = tagType:upper()
 
-    -- CONFIGURAÇÃO DE CORES EXATA DO SEU PEDIDO
+    -- Cores e Sombras conforme solicitado
     if cleanTag:find("CREATOR") then
         text.Text = "👑 " .. cleanTag
         textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Dourado
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 20)), -- Sombra Preta
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))   -- Dourado
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 20)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
         }
     elseif cleanTag:find("BOOSTER") then
         text.Text = "🚀 " .. cleanTag
         textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 20, 147)), -- Rosa
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), -- Sombra Branca
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 20, 147)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
             ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 20, 147))
         }
     elseif cleanTag:find("INFLUENCER") then
         text.Text = "🎥 " .. cleanTag
         textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),       -- Sombra Preta
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
             ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
         }
     elseif cleanTag:find("VETERANO") then
         text.Text = "🛡️ " .. cleanTag
-        textGrad.Color = ColorSequence.new{ -- 5 cores
+        textGrad.Color = ColorSequence.new{
             ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
             ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 255, 0)),
             ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),
@@ -102,11 +106,11 @@ local function createPrettyTag(player, head, tagType)
     
     textGrad.Parent = text
 
-    -- Sua animação original de RenderStepped
+    -- Mantendo sua animação original
     task.spawn(function()
         local offsetText = -1
         while gui.Parent do
-            offsetText = offsetText + 0.015 -- Sua velocidade original
+            offsetText = offsetText + 0.015
             if offsetText > 1 then offsetText = -1 end
             textGrad.Offset = Vector2.new(offsetText, 0)
             RunService.RenderStepped:Wait()
@@ -114,6 +118,7 @@ local function createPrettyTag(player, head, tagType)
     end)
 end
 
+-- Lógica de Aplicação e Loop de 40s
 local function applyTag(player)
     local function onCharacter(char)
         task.wait(0.6)
@@ -131,7 +136,6 @@ end
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
 Players.PlayerAdded:Connect(applyTag)
 
--- LOOP DE ATUALIZAÇÃO (Reinserido)
 task.spawn(function()
     while true do
         task.wait(40)
