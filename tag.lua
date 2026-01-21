@@ -3,8 +3,12 @@ local RunService = game:GetService("RunService")
 
 local TagConfig = {
     Creator = {
-        Priority = 3,
+        Priority = 4, -- Aumentado para manter no topo
         Users = {"taylafofinha2","Mv_Cap", "SolterYourBad"}
+    },
+    Influencer = {
+        Priority = 3,
+        Users = {} -- Adicione os nomes aqui
     },
     Booster = {
         Priority = 2,
@@ -55,7 +59,6 @@ local function createPrettyTag(head, tagType)
     gui.Parent = head
 
     if tagType == "Creator" then
-        -- TEXTO SEM BACKGROUND E SEM OUTLINE
         local text = Instance.new("TextLabel")
         text.Size = UDim2.new(1, 0, 1, 0)
         text.BackgroundTransparency = 1
@@ -66,19 +69,17 @@ local function createPrettyTag(head, tagType)
         text.Text = "👑 DOBECORE"
         text.Parent = gui
 
-        -- Gradiente de Sombra Suave (Efeito Ouro/Sombra)
         local textGrad = Instance.new("UIGradient")
         textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Inicia Dourado
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)), -- Sombra Escura no meio
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0)) -- Termina Dourado
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
         }
         textGrad.Parent = text
 
         task.spawn(function()
             local offsetText = -1
             while gui.Parent do
-                -- Animação da sombra do texto passando
                 offsetText = offsetText + 0.015
                 if offsetText > 1 then offsetText = -1 end
                 textGrad.Offset = Vector2.new(offsetText, 0)
@@ -86,8 +87,28 @@ local function createPrettyTag(head, tagType)
             end
         end)
 
+    elseif tagType == "Influencer" then
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 0, 1, 0)
+        frame.BorderSizePixel = 0
+        frame.BackgroundColor3 = Color3.fromRGB(173, 216, 230) -- Azul claro/Ciano
+        frame.BackgroundTransparency = 0.15
+        frame.Parent = gui
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = frame
+
+        local text = Instance.new("TextLabel")
+        text.Size = UDim2.new(1, 0, 1, 0)
+        text.BackgroundTransparency = 1
+        text.Font = Enum.Font.GothamBlack
+        text.TextSize = 10
+        text.TextColor3 = Color3.new(1, 1, 1)
+        text.Text = "🎥 INFLUENCER"
+        text.Parent = frame
+
     elseif tagType == "Booster" then
-        -- Booster continua com background estilo pílula por padrão
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 1, 0)
         frame.BorderSizePixel = 0
