@@ -27,7 +27,6 @@ local function hasName(list, name)
     return false
 end
 
-
 local function getPlayerTag(player)
     local best = nil
     local bestPriority = -1
@@ -42,7 +41,6 @@ local function getPlayerTag(player)
     return best
 end
 
-
 local function clearTag(char)
     local head = char:FindFirstChild("Head")
     if head then
@@ -50,7 +48,6 @@ local function clearTag(char)
         if old then old:Destroy() end
     end
 end
-
 
 local function createPrettyTag(head, tagType)
     local gui = Instance.new("BillboardGui")
@@ -91,23 +88,21 @@ local function createPrettyTag(head, tagType)
         end)
 
     elseif tagType == "Influencer" then
-        -- Estilo idêntico ao Creator (sem frame de fundo)
         local text = Instance.new("TextLabel")
         text.Size = UDim2.new(1, 0, 1, 0)
         text.BackgroundTransparency = 1
         text.BorderSizePixel = 0
         text.Font = Enum.Font.GothamBlack
         text.TextSize = 12
-        text.TextColor3 = Color3.new(1, 1, 1) -- Texto Branco
+        text.TextColor3 = Color3.new(1, 1, 1)
         text.Text = "🎥 INFLUENCER"
         text.Parent = gui
 
-        -- Gradiente animado aplicado ao texto (mesmo efeito do Creator)
         local textGrad = Instance.new("UIGradient")
         textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 150, 150)), -- Cinza claro (para o efeito de brilho)
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))  -- Branco
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 150, 150)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)) 
         }
         textGrad.Parent = text
 
@@ -122,39 +117,36 @@ local function createPrettyTag(head, tagType)
         end)
 
     elseif tagType == "Booster" then
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
-        frame.BorderSizePixel = 0
-        frame.BackgroundColor3 = Color3.fromRGB(255, 20, 147)
-        frame.BackgroundTransparency = 0.15
-        frame.Parent = gui
-
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(1, 0)
-        corner.Parent = frame
-
+        -- Booster sem background, apenas texto com brilho rosa animado
         local text = Instance.new("TextLabel")
         text.Size = UDim2.new(1, 0, 1, 0)
         text.BackgroundTransparency = 1
+        text.BorderSizePixel = 0
         text.Font = Enum.Font.GothamBlack
-        text.TextSize = 9
+        text.TextSize = 12
         text.TextColor3 = Color3.new(1, 1, 1)
         text.Text = "🚀 SERVER BOOSTER"
-        text.Parent = frame
+        text.Parent = gui
 
-        local boostGrad = Instance.new("UIGradient")
-        boostGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 120, 200))
-        boostGrad.Parent = frame
+        local textGrad = Instance.new("UIGradient")
+        textGrad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 20, 147)), -- Rosa (Sombra/Brilho)
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))  -- Branco
+        }
+        textGrad.Parent = text
 
         task.spawn(function()
+            local offsetText = -1
             while gui.Parent do
-                boostGrad.Rotation = (boostGrad.Rotation + 2) % 360
+                offsetText = offsetText + 0.015
+                if offsetText > 1 then offsetText = -1 end
+                textGrad.Offset = Vector2.new(offsetText, 0)
                 RunService.RenderStepped:Wait()
             end
         end)
     end
 end
-
 
 local function applyTag(player)
     local function onCharacter(char)
