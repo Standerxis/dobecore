@@ -1,6 +1,10 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+-- Variáveis de controle globais para o menu acessar
+_G.TagsVisible = _G.TagsVisible or true
+_G.MyTagVisible = _G.MyTagVisible or true
+
 local TagConfig = {
     Creator = {
         Priority = 4,
@@ -19,6 +23,33 @@ local TagConfig = {
         Users = {}
     }
 }
+
+-- Funções de Controle que o Menu vai chamar
+function _G.toggleAllTags(state)
+    _G.TagsVisible = state
+    for _, plr in ipairs(Players:GetPlayers()) do
+        local char = plr.Character
+        if char then
+            local head = char:FindFirstChild("Head")
+            if head then
+                local tag = head:FindFirstChild("DobeTag")
+                if tag then tag.Enabled = state end
+            end
+        end
+    end
+end
+
+function _G.toggleMyTag(state)
+    _G.MyTagVisible = state
+    local char = Players.LocalPlayer.Character
+    if char then
+        local head = char:FindFirstChild("Head")
+        if head then
+            local tag = head:FindFirstChild("DobeTag")
+            if tag then tag.Enabled = state end
+        end
+    end
+end
 
 local function hasName(list, name)
     for _, v in ipairs(list) do
@@ -49,16 +80,25 @@ local function clearTag(char)
     end
 end
 
-local function createPrettyTag(head, tagType)
+local function createPrettyTag(player, head, tagType)
     local gui = Instance.new("BillboardGui")
     gui.Name = "DobeTag"
     gui.Size = UDim2.new(0, 140, 0, 30)
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
     gui.MaxDistance = 80
+    
+    -- VERIFICAÇÃO DE VISIBILIDADE AO CRIAR
+    if not _G.TagsVisible then
+        gui.Enabled = false
+    elseif player == Players.LocalPlayer and not _G.MyTagVisible then
+        gui.Enabled = false
+    end
+    
     gui.Parent = head
 
-    if tagType == "Creator" then
+    -- [SISTEMA DE CORES E ANIMAÇÕES IGUAL AO ANTERIOR]
+    if tagType == "Creator" or tagType == "Influencer" or tagType == "Booster" then
         local text = Instance.new("TextLabel")
         text.Size = UDim2.new(1, 0, 1, 0)
         text.BackgroundTransparency = 1
@@ -66,74 +106,33 @@ local function createPrettyTag(head, tagType)
         text.Font = Enum.Font.GothamBlack
         text.TextSize = 12
         text.TextColor3 = Color3.new(1, 1, 1)
-        text.Text = "👑 DOBECORE"
         text.Parent = gui
 
         local textGrad = Instance.new("UIGradient")
-        textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
-        }
-        textGrad.Parent = text
-
-        task.spawn(function()
-            local offsetText = -1
-            while gui.Parent do
-                offsetText = offsetText + 0.015
-                if offsetText > 1 then offsetText = -1 end
-                textGrad.Offset = Vector2.new(offsetText, 0)
-                RunService.RenderStepped:Wait()
-            end
-        end)
-
-    elseif tagType == "Influencer" then
-        local text = Instance.new("TextLabel")
-        text.Size = UDim2.new(1, 0, 1, 0)
-        text.BackgroundTransparency = 1
-        text.BorderSizePixel = 0
-        text.Font = Enum.Font.GothamBlack
-        text.TextSize = 12
-        text.TextColor3 = Color3.new(1, 1, 1)
-        text.Text = "🎥 INFLUENCER"
-        text.Parent = gui
-
-        local textGrad = Instance.new("UIGradient")
-        textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 150, 150)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)) 
-        }
-        textGrad.Parent = text
-
-        task.spawn(function()
-            local offsetText = -1
-            while gui.Parent do
-                offsetText = offsetText + 0.015
-                if offsetText > 1 then offsetText = -1 end
-                textGrad.Offset = Vector2.new(offsetText, 0)
-                RunService.RenderStepped:Wait()
-            end
-        end)
-
-    elseif tagType == "Booster" then
-        -- Booster sem background, apenas texto com brilho rosa animado
-        local text = Instance.new("TextLabel")
-        text.Size = UDim2.new(1, 0, 1, 0)
-        text.BackgroundTransparency = 1
-        text.BorderSizePixel = 0
-        text.Font = Enum.Font.GothamBlack
-        text.TextSize = 12
-        text.TextColor3 = Color3.new(1, 1, 1)
-        text.Text = "🚀 SERVER BOOSTER"
-        text.Parent = gui
-
-        local textGrad = Instance.new("UIGradient")
-        textGrad.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Branco
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 20, 147)), -- Rosa (Sombra/Brilho)
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))  -- Branco
-        }
+        
+        if tagType == "Creator" then
+            text.Text = "👑 DOBECORE"
+            textGrad.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
+            }
+        elseif tagType == "Influencer" then
+            text.Text = "🎥 INFLUENCER"
+            textGrad.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 150, 150)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+            }
+        elseif tagType == "Booster" then
+            text.Text = "🚀 SERVER BOOSTER"
+            textGrad.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 20, 147)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+            }
+        end
+        
         textGrad.Parent = text
 
         task.spawn(function()
@@ -156,7 +155,7 @@ local function applyTag(player)
         if tag then
             local head = char:WaitForChild("Head", 10)
             if head then
-                createPrettyTag(head, tag)
+                createPrettyTag(player, head, tag)
             end
         end
     end
@@ -167,5 +166,3 @@ end
 
 for _, plr in ipairs(Players:GetPlayers()) do applyTag(plr) end
 Players.PlayerAdded:Connect(applyTag)
-
-print("carregou parte 8")
