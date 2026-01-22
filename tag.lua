@@ -74,17 +74,13 @@ local function createPrettyTag(player, head, tagText)
         mainColor = Color3.fromRGB(255, 60, 200)
     elseif cleanTag:find("PREMIUM") then
         text.Text = "💎 " .. cleanTag
-        mainColor = Color3.fromRGB(255, 215, 0)
-        -- Ajuste aqui: Sombra preta com leve transparência para não "engordar"
-        text.TextStrokeColor3 = Color3.new(0, 0, 0)
-        text.TextStrokeTransparency = 0.5 
+        mainColor = Color3.fromRGB(255, 215, 0) -- Amarelo Premium
+        text.TextStrokeColor3 = Color3.fromRGB(255, 255, 255) -- Sombra Branca
     elseif cleanTag:find("PLATINUM") then
         text.Text = "✨ " .. cleanTag
-        mainColor = Color3.fromRGB(160, 32, 240)
-        secondColor = Color3.fromRGB(75, 0, 130)
-        -- Ajuste aqui: Sombra preta com leve transparência
-        text.TextStrokeColor3 = Color3.new(0, 0, 0)
-        text.TextStrokeTransparency = 0.5
+        mainColor = Color3.fromRGB(160, 32, 240) -- Roxo
+        secondColor = Color3.fromRGB(75, 0, 130) -- Roxo Escuro
+        text.TextStrokeColor3 = Color3.fromRGB(255, 255, 255) -- Sombra Branca
     elseif cleanTag:find("USER") then
         text.Text = "👤 " .. cleanTag
         mainColor = Color3.fromRGB(255, 255, 255) -- Cor Branca
