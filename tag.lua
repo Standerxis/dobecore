@@ -75,7 +75,7 @@ local function createPrettyTag(player, head, tagText)
         text.TextStrokeColor3 = Color3.new(0, 0, 0)
     elseif cleanTag:find("BOOSTER") then
         text.Text = "🚀 " .. cleanTag
-        mainColor = Color3.fromRGB(255, 0, 200)
+        mainColor = Color3.fromRGB(255, 60, 200)
         text.TextStrokeTransparency = 1 -- SEM SOMBRA
     elseif cleanTag:find("INFLUENCER") then
         text.Text = "🎥 " .. cleanTag
