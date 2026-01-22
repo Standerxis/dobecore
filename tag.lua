@@ -55,43 +55,43 @@ local function createPrettyTag(player, head, tagText)
     constraint.Parent = text
     
     local grad = Instance.new("UIGradient")
-    local cleanTag = tostring(tagText):upper()
+    local cleanTag = tostring(tagText):upper():gsub("%s+", "") -- Remove espaços para evitar erros de busca
     
     local mainColor
-    local secondColor = Color3.fromRGB(255, 255, 255) -- Brilho branco padrão
+    local secondColor = Color3.fromRGB(255, 255, 255) 
     local hasAnimation = true
     
-    -- Configuração de Sombra (TextStroke) - PADRÃO PRETO PARA DOBECORE
+    -- Configuração de Sombra (TextStroke) - PADRÃO PRETO
     text.TextStrokeTransparency = 0 
     text.TextStrokeColor3 = Color3.new(0, 0, 0) 
 
-    -- Lógica de Estilo por Tag
-    if cleanTag:find("DOBE") then
-        text.Text = "👑 " .. cleanTag
-        mainColor = Color3.fromRGB(255, 180, 0)
+    -- Lógica de Estilo por Tag (CORRIGIDA)
+    if cleanTag:find("DOBE") or cleanTag == "DOBE" then
+        text.Text = "👑 " .. tostring(tagText):upper() -- Usa o texto original com ícone
+        mainColor = Color3.fromRGB(255, 180, 0) -- Dourado/Amarelo Dobe
     elseif cleanTag:find("BOOSTER") then
-        text.Text = "🚀 " .. cleanTag
+        text.Text = "🚀 " .. tostring(tagText):upper()
         mainColor = Color3.fromRGB(255, 60, 200)
     elseif cleanTag:find("PREMIUM") then
-        text.Text = "💎 " .. cleanTag
-        mainColor = Color3.fromRGB(255, 215, 0) -- Amarelo Premium
-        text.TextStrokeColor3 = Color3.fromRGB(255, 255, 255) -- Sombra Branca
+        text.Text = "💎 " .. tostring(tagText):upper()
+        mainColor = Color3.fromRGB(255, 215, 0) 
+        text.TextStrokeColor3 = Color3.fromRGB(255, 255, 255) 
     elseif cleanTag:find("PLATINUM") then
-        text.Text = "✨ " .. cleanTag
-        mainColor = Color3.fromRGB(160, 32, 240) -- Roxo
-        secondColor = Color3.fromRGB(75, 0, 130) -- Roxo Escuro
-        text.TextStrokeColor3 = Color3.fromRGB(255, 255, 255) -- Sombra Branca
+        text.Text = "✨ " .. tostring(tagText):upper()
+        mainColor = Color3.fromRGB(160, 32, 240) 
+        secondColor = Color3.fromRGB(75, 0, 130) 
+        text.TextStrokeColor3 = Color3.fromRGB(255, 255, 255) 
     elseif cleanTag:find("USER") then
-        text.Text = "👤 " .. cleanTag
-        mainColor = Color3.fromRGB(255, 255, 255) -- Cor Branca
-        hasAnimation = false -- Sem animação
-        text.TextStrokeColor3 = Color3.new(0, 0, 0) -- Sombra Preta
+        text.Text = "👤 " .. tostring(tagText):upper()
+        mainColor = Color3.fromRGB(255, 255, 255) 
+        hasAnimation = false 
     elseif cleanTag:find("INFLUENCER") then
-        text.Text = "🎥 " .. cleanTag
+        text.Text = "🎥 " .. tostring(tagText):upper()
         mainColor = Color3.fromRGB(0, 200, 255)
     else
-        text.Text = cleanTag
-        mainColor = Color3.fromRGB(150, 150, 150)
+        -- Se não achar nada, aplica o texto original e a cor branca (evitando o cinza)
+        text.Text = tostring(tagText):upper()
+        mainColor = Color3.fromRGB(255, 255, 255) 
     end
 
     -- Aplicar Gradiente
@@ -102,7 +102,6 @@ local function createPrettyTag(player, head, tagText)
     }
     grad.Parent = text
 
-    -- Animação do brilho (Apenas se hasAnimation for true)
     if hasAnimation then
         task.spawn(function()
             local t = 0
@@ -115,7 +114,7 @@ local function createPrettyTag(player, head, tagText)
     end
 end
 
--- Lógica de Aplicação (Mantida igual)
+-- Restante do código de aplicação e loop (Mantido)
 local function applyTag(player)
     local function setup(char)
         local head = char:WaitForChild("Head", 15)
