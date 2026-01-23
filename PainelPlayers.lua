@@ -106,12 +106,14 @@ MasterStroke.Thickness = 2
 
 --// ESTRUTURA INTERNA (LeftSide, Search, List, RightSide)
 local LeftSide = Instance.new("Frame", Master)
+LeftSide.ZIndex = 2
 LeftSide.Size = UDim2.new(0, 170, 1, -30)
 LeftSide.Position = UDim2.new(0, 15, 0, 15)
 LeftSide.BackgroundTransparency = 1
 
 local SearchFrame = Instance.new("Frame", LeftSide)
 SearchFrame.Size = UDim2.new(1, 0, 0, 35)
+SearchFrame.ZIndex = 3
 SearchFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 Instance.new("UICorner", SearchFrame).CornerRadius = UDim.new(0, 8)
 
@@ -119,6 +121,7 @@ local SearchInput = Instance.new("TextBox", SearchFrame)
 SearchInput.Size = UDim2.new(1, -10, 1, 0)
 SearchInput.Position = UDim2.new(0, 5, 0, 0)
 SearchInput.BackgroundTransparency = 1
+SearchInput.ZIndex = 3
 SearchInput.Text = ""
 SearchInput.PlaceholderText = "Pesquisar..."
 SearchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -128,6 +131,7 @@ SearchInput.TextSize = 13
 local List = Instance.new("ScrollingFrame", LeftSide)
 List.Size = UDim2.new(1, 0, 1, -45)
 List.Position = UDim2.new(0, 0, 0, 45)
+List.ZIndex = 3
 List.BackgroundTransparency = 1
 List.ScrollBarThickness = 2
 List.ScrollBarImageColor3 = Color3.fromRGB(0, 150, 255)
@@ -137,12 +141,14 @@ ListLayout.Padding = UDim.new(0, 6)
 
 local RightSide = Instance.new("Frame", Master)
 RightSide.Size = UDim2.new(1, -210, 1, -30)
+RightSide.ZIndex = 2
 RightSide.Position = UDim2.new(0, 195, 0, 15)
 RightSide.BackgroundTransparency = 1
 
 local BigIcon = Instance.new("ImageLabel", RightSide)
 BigIcon.Size = UDim2.new(0, 80, 0, 80)
 BigIcon.Position = UDim2.new(0.5, -40, 0, 5)
+BigIcon.ZIndex = 6
 BigIcon.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 Instance.new("UICorner", BigIcon).CornerRadius = UDim.new(1, 0)
 
@@ -150,6 +156,7 @@ local NameLabel = Instance.new("TextLabel", RightSide)
 NameLabel.Size = UDim2.new(1, 0, 0, 25)
 NameLabel.Position = UDim2.new(0, 0, 0, 90)
 NameLabel.BackgroundTransparency = 1
+NameLabel.ZIndex = 6
 NameLabel.Text = "Selecione"
 NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 NameLabel.Font = Enum.Font.GothamBold
@@ -160,6 +167,7 @@ BtnScroll.Size = UDim2.new(1, 0, 1, -125)
 BtnScroll.Position = UDim2.new(0, 0, 0, 120)
 BtnScroll.BackgroundTransparency = 1
 BtnScroll.ScrollBarThickness = 2
+BtnScroll.ZIndex = 7
 BtnScroll.ScrollBarImageColor3 = Color3.fromRGB(0, 150, 255)
 BtnScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 local BtnLayout = Instance.new("UIListLayout", BtnScroll)
@@ -269,6 +277,7 @@ local function CreateBtn(txt, callback)
     b.Size = UDim2.new(0.9, 0, 0, 35)
     b.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
     b.Text = txt; b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.ZIndex = 7
     Instance.new("UICorner", b)
     b.MouseButton1Click:Connect(function() if selectedPlayer then callback(selectedPlayer) end end)
 end
