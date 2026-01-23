@@ -109,49 +109,62 @@ local VERTICAL_SPEED = 45
 -- =========================
 -- STATE
 -- =========================
-local flying = false
-
--- =========================
--- BODY MOVERS
--- =========================
-local BV = Instance.new("BodyVelocity")
-BV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-
-local BG = Instance.new("BodyGyro")
-BG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-
-local function startFly()
-	if flying or not HRP then return end
-	flying = true
-	BV.Parent = HRP
-	BG.Parent = HRP
-	Hum.PlatformStand = true
+local function stopFollow()
+    isFollowing = false
+    if followConnection then followConnection:Disconnect(); followConnection = nil end
+    if followBtnReference then
+        followBtnReference.Text = "Follow"
+        followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    end
 end
 
-local function stopFly()
-	if not flying then return end
-	flying = false
-	BV.Parent = nil
-	BG.Parent = nil
-	Hum.PlatformStand = false
-	BV.Velocity = Vector3.zero
+local function startFollow(targetPlayer)
+    if isFollowing then stopFollow() end
+    if not targetPlayer or targetPlayer == LocalPlayer then return end
+    
+    isFollowing = true
+    followBtnReference.Text = "Stop Follow"
+    followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+    
+    followConnection = RunService.RenderStepped:Connect(function()
+        if isFollowing and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local myChar = LocalPlayer.Character
+            if myChar and myChar:FindFirstChild("Humanoid") then
+                local targetHRP = targetPlayer.Character.HumanoidRootPart
+                -- Move o personagem para a posição do alvo com um offset
+                myChar.Humanoid:MoveTo(targetHRP.Position + targetHRP.CFrame.LookVector * -FOLLOW_DISTANCE)
+            end
+        else
+            stopFollow()
+        end
+    end)
 end
+
 --// 5. FUNÇÕES DOS BOTÕES
 local function CreateBtn(txt, callback)
     local b = Instance.new("TextButton", BtnScroll)
     b.Size = UDim2.new(0.9, 0, 0, 35); b.BackgroundColor3 = Color3.fromRGB(45, 45, 50); b.Text = txt; b.TextColor3 = Color3.fromRGB(255, 255, 255); b.Font = Enum.Font.GothamBold; b.TextSize = 12
     Instance.new("UICorner", b)
-    if txt == "Follow" then followBtnReference = b elseif txt == "Spectate" then spectateBtnReference = b end
-    b.MouseButton1Click:Connect(function() if selectedPlayer then callback(selectedPlayer) end end)
+    
+    if txt == "Follow" then 
+        followBtnReference = b 
+    elseif txt == "Spectate" then 
+        spectateBtnReference = b 
+    end
+    
+    b.MouseButton1Click:Connect(function() 
+        if selectedPlayer then callback(selectedPlayer) end 
+    end)
 end
 
---// SPECTATE
 local function ToggleSpectate(p)
     local Camera = workspace.CurrentCamera
     if isSpectating or not p then
         isSpectating = false
-        Camera.CameraSubject = LocalPlayer.Character:FindFirstChild("Humanoid")
-        if spectateBtnReference then spectateBtnReference.Text = "Spectate"; spectateBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50) end
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            Camera.CameraSubject = LocalPlayer.Character.Humanoid
+        end
+        spectateBtnReference.Text = "Spectate"; spectateBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
     else
         if p.Character and p.Character:FindFirstChild("Humanoid") then
             isSpectating = true
@@ -160,6 +173,7 @@ local function ToggleSpectate(p)
         end
     end
 end
+--// 5. FUNÇÕES DOS BOTÕES
 
 -- Criação dos botões de ação
 CreateBtn("Follow", function(p)
