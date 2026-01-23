@@ -3,6 +3,7 @@ local Library = loadstring(game:HttpGet(
 ))()
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 --// CONFIGURAÇÕES DE PROFUNDIDADE
