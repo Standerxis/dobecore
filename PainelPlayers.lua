@@ -77,6 +77,7 @@ local LeftSide = Instance.new("Frame", Master)
 LeftSide.Size = UDim2.new(0, 170, 1, -30); LeftSide.Position = UDim2.new(0, 15, 0, 15); LeftSide.BackgroundTransparency = 1
 
 local SearchInput = Instance.new("TextBox", LeftSide)
+SearchInput.Text = ""
 SearchInput.Size = UDim2.new(1, 0, 0, 35); SearchInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 SearchInput.PlaceholderText = "Pesquisar..."; SearchInput.TextColor3 = Color3.fromRGB(255, 255, 255); SearchInput.Font = Enum.Font.GothamMedium; SearchInput.TextSize = 13
 Instance.new("UICorner", SearchInput)
@@ -291,9 +292,9 @@ local function Refresh()
     end
 end
 
+Refresh()
 SearchInput:GetPropertyChangedSignal("Text"):Connect(Refresh)
 Players.PlayerAdded:Connect(Refresh); Players.PlayerRemoving:Connect(Refresh)
-Refresh()
 
 -- Tecla para abrir (Fim da página ou Custom)
 _G.TogglePlayerPanel = function()
