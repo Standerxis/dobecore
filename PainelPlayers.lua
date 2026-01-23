@@ -219,6 +219,8 @@ local function CreateItemView(itemName, equipped)
     end
 end
 
+local followBtnReference = nil
+
 local function UpdateBackpackView(p)
     BP_Container:ClearAllChildren()
     Instance.new("UIListLayout", BP_Container).FillDirection = Enum.FillDirection.Horizontal
@@ -280,9 +282,33 @@ local function CreateBtn(txt, callback)
     b.ZIndex = 7
     Instance.new("UICorner", b)
     b.MouseButton1Click:Connect(function() if selectedPlayer then callback(selectedPlayer) end end)
+
+  if txt == "Follow" then
+        followBtnReference = b
+    end
+
+  b.MouseButton1Click:Connect(function() 
+        if selectedPlayer then 
+            callback(selectedPlayer) 
+        end 
+    end)
 end
 
-CreateBtn("Follow", function(p) FOLLOW_STATE.Enabled = not FOLLOW_STATE.Enabled; FOLLOW_STATE.Target = p end)
+CreateBtn("Follow", function(p)
+    -- Se clicar no mesmo cara que já está seguindo: Para.
+    if FOLLOW_STATE.Enabled and FOLLOW_STATE.Target == p then
+        FOLLOW_STATE.Enabled = false
+        FOLLOW_STATE.Target = nil
+        followBtnReference.Text = "Follow"
+        followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    else
+        -- Se for um novo cara ou estava desligado: Inicia.
+        FOLLOW_STATE.Enabled = true
+        FOLLOW_STATE.Target = p
+        followBtnReference.Text = "Stop Follow"
+        followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50) -- Fica vermelhinho pra indicar que tá ativo
+    end
+end)
 CreateBtn("Teleport", function(p) LocalPlayer.Character:PivotTo(p.Character:GetPivot()) end)
 CreateBtn("View Backpack", function(p) UpdateBackpackView(p) end)
 
