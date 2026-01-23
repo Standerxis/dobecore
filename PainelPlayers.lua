@@ -110,6 +110,7 @@ SearchFrame.Size = UDim2.new(1, 0, 0, 35); SearchFrame.BackgroundColor3 = Color3
 Instance.new("UICorner", SearchFrame)
 
 local SearchInput = Instance.new("TextBox", SearchFrame)
+SearchInput.Text = ""
 SearchInput.Size = UDim2.new(1, -10, 1, 0); SearchInput.Position = UDim2.new(0, 5, 0, 0); SearchInput.BackgroundTransparency = 1
 SearchInput.PlaceholderText = "Pesquisar..."; SearchInput.TextColor3 = Color3.fromRGB(255, 255, 255); SearchInput.Font = Enum.Font.GothamMedium; SearchInput.TextSize = 13; SearchInput.ZIndex = 4
 
@@ -180,13 +181,138 @@ local function CreateBtn(txt, callback)
     b.MouseButton1Click:Connect(function() if selectedPlayer then callback(selectedPlayer) end end)
 end
 
-CreateBtn("Follow", function(p)
-    if FOLLOW_STATE.Enabled and FOLLOW_STATE.Target == p then
-        FOLLOW_STATE.Enabled = false; FOLLOW_STATE.Target = nil
-        followBtnReference.Text = "Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+local FOLLOW_CONFIG = {
+    Enabled = false,
+    Target = nil,
+    StopDistance = 5,
+    FlyHeightThreshold = 15, -- Se o alvo estiver acima disso, voamos
+    ThinkRate = 0.1
+}
+
+local isSpectating = false
+local selectedPlayer = nil
+local flying = false
+
+--// COMPONENTES FÍSICOS PARA VOO
+local BV = Instance.new("BodyVelocity")
+BV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+local BG = Instance.new("BodyGyro")
+BG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+
+--// 2. FUNÇÕES DE SUPORTE (LÓGICA HUMANA)
+local function getCharacterData(plr)
+    local char = plr.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    return char, hum, hrp
+end
+
+local function jumpReaction()
+    local _, hum, _ = getCharacterData(LocalPlayer)
+    if hum and hum.FloorMaterial ~= Enum.Material.Air then
+        task.wait(math.random(0.05, 0.15)) -- Delay humano
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end
+
+--// 3. SISTEMA DE VOO INTEGADO
+local function toggleFly(state, hrp, hum)
+    if state then
+        flying = true
+        BV.Parent = hrp
+        BG.Parent = hrp
+        hum.PlatformStand = true
     else
-        FOLLOW_STATE.Enabled = true; FOLLOW_STATE.Target = p
-        followBtnReference.Text = "Stop Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        flying = false
+        BV.Parent = nil
+        BG.Parent = nil
+        hum.PlatformStand = false
+    end
+end
+
+--// 4. LOOP PRINCIPAL DE PENSAMENTO (BRAIN)
+task.spawn(function()
+    while task.wait(FOLLOW_CONFIG.ThinkRate) do
+        if not FOLLOW_CONFIG.Enabled or not FOLLOW_CONFIG.Target then 
+            if flying then toggleFly(false, getCharacterData(LocalPlayer)) end
+            continue 
+        end
+
+        local myChar, myHum, myHRP = getCharacterData(LocalPlayer)
+        local tChar, tHum, tHRP = getCharacterData(FOLLOW_CONFIG.Target)
+
+        if not myHRP or not tHRP or not tHum then continue end
+
+        local distance = (tHRP.Position - myHRP.Position).Magnitude
+        local heightDiff = tHRP.Position.Y - myHRP.Position.Y
+        
+        -- LÓGICA DE PULO (Mimetismo)
+        if tHum:GetState() == Enum.HumanoidStateType.Jumping or tHum:GetState() == Enum.HumanoidStateType.Freefall then
+            if heightDiff > 2 and heightDiff < FOLLOW_CONFIG.FlyHeightThreshold then
+                jumpReaction()
+            end
+        end
+
+        -- LÓGICA DE VOO (Se o alvo estiver voando ou muito alto)
+        local isTargetFloating = tHum.FloorMaterial == Enum.Material.Air and heightDiff > 10
+        
+        if isTargetFloating or heightDiff > FOLLOW_CONFIG.FlyHeightThreshold then
+            if not flying then toggleFly(true, myHRP, myHum) end
+            
+            BG.CFrame = CFrame.new(myHRP.Position, tHRP.Position)
+            local targetPos = tHRP.Position - (tHRP.CFrame.LookVector * 4)
+            BV.Velocity = (targetPos - myHRP.Position).Unit * 50
+        else
+            if flying and heightDiff < 5 then toggleFly(false, myHRP, myHum) end
+            
+            -- MOVIMENTO TERRESTRE
+            if distance > FOLLOW_CONFIG.StopDistance then
+                myHum:MoveTo(tHRP.Position)
+            end
+        end
+
+        -- ANTI-STUCK (Se estiver parado batendo na parede)
+        if myHum.MoveDirection.Magnitude > 0 and myHRP.Velocity.Magnitude < 1 and not flying then
+            jumpReaction()
+        end
+    end
+end)
+
+--// 5. INTEGRAÇÃO COM SEU BOTÃO DE FOLLOW
+-- No seu script original, substitua a função do botão Follow por esta:
+local function onFollowClick(p)
+    if FOLLOW_CONFIG.Enabled and FOLLOW_CONFIG.Target == p then
+        FOLLOW_CONFIG.Enabled = false
+        FOLLOW_CONFIG.Target = nil
+        print("Follow Desativado")
+    else
+        FOLLOW_CONFIG.Enabled = true
+        FOLLOW_CONFIG.Target = p
+        print("Seguindo: " .. p.Name)
+    end
+end
+
+CreateBtn("Follow", function(p)
+    -- Verifica se já está seguindo este player específico
+    if FOLLOW_CONFIG.Enabled and FOLLOW_CONFIG.Target == p then
+        -- Desativa o sistema
+        FOLLOW_CONFIG.Enabled = false
+        FOLLOW_CONFIG.Target = nil
+        
+        -- Feedback Visual (Botão volta ao normal)
+        followBtnReference.Text = "Follow"
+        followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    else
+        -- Ativa o sistema para o player selecionado
+        FOLLOW_CONFIG.Enabled = true
+        FOLLOW_CONFIG.Target = p
+        
+        -- Feedback Visual (Botão fica vermelho indicando que pode parar)
+        followBtnReference.Text = "Stop Follow"
+        followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        
+        -- Opcional: Avisar no chat ou console para teste
+        print("Iniciando lógica complexa de seguimento em: " .. p.Name)
     end
 end)
 
@@ -232,17 +358,8 @@ end
 SearchInput:GetPropertyChangedSignal("Text"):Connect(Refresh)
 Players.PlayerAdded:Connect(Refresh); Players.PlayerRemoving:Connect(Refresh); Refresh()
 
-task.spawn(function()
-    while task.wait(0.1) do
-        if FOLLOW_STATE.Enabled and FOLLOW_STATE.Target and LocalPlayer.Character then
-            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local targetRoot = FOLLOW_STATE.Target.Character and FOLLOW_STATE.Target.Character:FindFirstChild("HumanoidRootPart")
-            if root and targetRoot and (targetRoot.Position - root.Position).Magnitude > 4 then
-                LocalPlayer.Character.Humanoid:MoveTo(targetRoot.Position)
-            end
-        end
-    end
-end)
+
+Refresh()
 
 _G.TogglePlayerPanel = function()
     Master.Visible = not Master.Visible
