@@ -5,6 +5,9 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
 
 --// CONFIGURAÇÕES DE PROFUNDIDADE
 local MAX_ZINDEX = 5000
@@ -528,17 +531,15 @@ end)
 -- (Supondo que CreateBtn e selectedPlayer já existam no seu script de UI)
 
 CreateBtn("Follow Player", function(p)
-    -- Se clicar no mesmo player que já está seguindo, ele desativa
-    if FOLLOW.Enabled and FOLLOW.Target == p then
-        FOLLOW.Enabled = false
-        FOLLOW.Target = nil
-        stopFly()
-        if Hum then Hum:Move(Vector3.zero, false) end
+    if FOLLOW_STATE.Enabled and FOLLOW_STATE.Target == p then
+        FOLLOW_STATE.Enabled = false
+        FOLLOW_STATE.Target = nil
+        ToggleFly(false) -- Função correta definida no seu script
+        if Humanoid then Humanoid:Move(Vector3.zero, false) end
         return "Follow Player"
     else
-        -- Ativa o follow para o player selecionado
-        FOLLOW.Enabled = true
-        FOLLOW.Target = p
+        FOLLOW_STATE.Enabled = true
+        FOLLOW_STATE.Target = p
         return "Stop Follow"
     end
 end)
