@@ -5,14 +5,7 @@ local LocalPlayer = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
---// 1. CONFIGURAÇÕES E ESTADOS GLOBAIS
-local FOLLOW_CONFIG = {
-    Enabled = false,
-    Target = nil,
-    StopDistance = 5,
-    FlyHeightThreshold = 15,
-    ThinkRate = 0.05 -- Mais rápido para maior precisão
-}
+--// 1. CONFIGURAÇÕES E ESTADOS GLOBAIs
 
 local isSpectating = false
 local selectedPlayer = nil
@@ -21,11 +14,7 @@ local followBtnReference = nil
 local spectateBtnReference = nil
 local MAX_ZINDEX = 5000
 
---// COMPONENTES FÍSICOS PARA VOO
-local BV = Instance.new("BodyVelocity")
-BV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-local BG = Instance.new("BodyGyro")
-BG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+--// COMPONENTES FÍSICOS PARA VO
 
 --// 2. CRIAÇÃO DA RAIZ DA UI
 local TargetParent = (RunService:IsStudio() and LocalPlayer.PlayerGui) or game:GetService("CoreGui") or LocalPlayer.PlayerGui
@@ -102,119 +91,51 @@ local BtnScroll = Instance.new("ScrollingFrame", RightSide)
 BtnScroll.Size = UDim2.new(1, 0, 1, -125); BtnScroll.Position = UDim2.new(0, 0, 0, 120); BtnScroll.BackgroundTransparency = 1; BtnScroll.ScrollBarThickness = 0
 local BtnLayout = Instance.new("UIListLayout", BtnScroll); BtnLayout.Padding = UDim.new(0, 6); BtnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
---// 4. LÓGICAS DE MOVIMENTO (THINKING)
-local THINK = 0.07
-local STOP_DIST = 4
-local FAR_DIST = 45
-local FLY_HEIGHT = 16
-local TP_HEIGHT = 30
-local FLY_SPEED = 65
-
-local flying = false
-local lastPos
-local stoppedTime = 0
-
-local BV = Instance.new("BodyVelocity")
-BV.MaxForce = Vector3.new(1e5,1e5,1e5)
-
-local BG = Instance.new("BodyGyro")
-BG.MaxTorque = Vector3.new(1e5,1e5,1e5)
-
-local function startFly(hrp, hum)
-	if flying then return end
-	flying = true
-	BV.Parent = hrp
-	BG.Parent = hrp
-	hum.PlatformStand = true
+local function SetupChar()
+	Char = LP.Character or LP.CharacterAdded:Wait()
+	Hum = Char:WaitForChild("Humanoid")
+	HRP = Char:WaitForChild("HumanoidRootPart")
 end
 
-local function stopFly(hrp, hum)
+SetupChar()
+LP.CharacterAdded:Connect(SetupChar)
+
+-- =========================
+-- CONFIG
+-- =========================
+local SPEED = 60
+local VERTICAL_SPEED = 45
+
+-- =========================
+-- STATE
+-- =========================
+local flying = false
+
+-- =========================
+-- BODY MOVERS
+-- =========================
+local BV = Instance.new("BodyVelocity")
+BV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+
+local BG = Instance.new("BodyGyro")
+BG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+
+local function startFly()
+	if flying or not HRP then return end
+	flying = true
+	BV.Parent = HRP
+	BG.Parent = HRP
+	Hum.PlatformStand = true
+end
+
+local function stopFly()
 	if not flying then return end
 	flying = false
 	BV.Parent = nil
 	BG.Parent = nil
-	hum.PlatformStand = false
+	Hum.PlatformStand = false
+	BV.Velocity = Vector3.zero
 end
-
-local function targetStopped(thrp)
-	if not lastPos then
-		lastPos = thrp.Position
-		return false
-	end
-	local d = (thrp.Position - lastPos).Magnitude
-	lastPos = thrp.Position
-
-	if d < 0.05 then
-		stoppedTime += THINK
-	else
-		stoppedTime = 0
-	end
-
-	return stoppedTime > 0.4
-end
-
-task.spawn(function()
-	while task.wait(THINK) do
-		if not FOLLOW_CONFIG.Enabled or not FOLLOW_CONFIG.Target then
-			stopFly()
-			continue
-		end
-
-		local char = LocalPlayer.Character
-		local tChar = FOLLOW_CONFIG.Target.Character
-		if not char or not tChar then continue end
-
-		local hum = char:FindFirstChild("Humanoid")
-		local hrp = char:FindFirstChild("HumanoidRootPart")
-		local thrp = tChar:FindFirstChild("HumanoidRootPart")
-		local thum = tChar:FindFirstChild("Humanoid")
-
-		if not hum or not hrp or not thrp then continue end
-
-		local delta = thrp.Position - hrp.Position
-		local dist = delta.Magnitude
-		local height = thrp.Position.Y - hrp.Position.Y
-		local stopped = targetStopped(thrp)
-
-		-- teleport se muito longe
-		if dist > FAR_DIST then
-			hrp.CFrame = CFrame.new(thrp.Position - delta.Unit * 5)
-			continue
-		end
-
-		-- fly
-		if height > FLY_HEIGHT or thum.FloorMaterial == Enum.Material.Air then
-			startFly(hrp, hum)
-
-			local desired = thrp.Position - thrp.CFrame.LookVector * 4
-			local diff = desired - hrp.Position
-
-			local vertical = math.clamp(diff.Y * 2, -25, 25)
-			local horizontal = Vector3.new(diff.X, 0, diff.Z)
-
-			local hVel =
-				horizontal.Magnitude > 1
-				and horizontal.Unit * math.clamp(horizontal.Magnitude * 2, 10, 35)
-				or Vector3.zero
-
-			BG.CFrame = CFrame.new(hrp.Position, thrp.Position)
-			BV.Velocity = hVel + Vector3.new(0, vertical, 0)
-			continue
-		end
-
-		-- desce do fly
-		if flying and height < 4 and dist < 8 then
-			stopFly(hrp, hum)
-		end
-
-		-- andar normal
-		if dist > STOP_DIST then
-			hum:MoveTo(thrp.Position)
-		end
-	end
-end)
-
-
 --// 5. FUNÇÕES DOS BOTÕES
 local function CreateBtn(txt, callback)
     local b = Instance.new("TextButton", BtnScroll)
@@ -242,15 +163,11 @@ end
 
 -- Criação dos botões de ação
 CreateBtn("Follow", function(p)
-    if FOLLOW_CONFIG.Enabled and FOLLOW_CONFIG.Target == p then
-        FOLLOW_CONFIG.Enabled = false
-        FOLLOW_CONFIG.Target = nil
-        followBtnReference.Text = "Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-    else
-        FOLLOW_CONFIG.Enabled = true
-        FOLLOW_CONFIG.Target = p
-        followBtnReference.Text = "Stop Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-    end
+   if flying then
+			stopFly()
+		else
+			startFly()
+		end
 end)
 
 CreateBtn("Spectate", function(p) ToggleSpectate(p) end)
