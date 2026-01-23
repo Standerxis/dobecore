@@ -5,19 +5,17 @@ local LocalPlayer = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
---// 1. CONFIGURAÇÕES E ESTADOS GLOBAIs
-
+--// 1. CONFIGURAÇÕES E ESTADOS GLOBAIS
 local isSpectating = false
 local selectedPlayer = nil
-local flying = false
+local isFollowing = false
 local followBtnReference = nil
 local spectateBtnReference = nil
-local MAX_ZINDEX = 5000
-
---// COMPONENTES FÍSICOS PARA VO
+local followConnection = nil
+local FOLLOW_DISTANCE = 5
 
 --// 2. CRIAÇÃO DA RAIZ DA UI
-local TargetParent = (RunService:IsStudio() and LocalPlayer.PlayerGui) or game:GetService("CoreGui") or LocalPlayer.PlayerGui
+local TargetParent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui")) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 local MainGui = Instance.new("ScreenGui")
 MainGui.Name = "Complex_PlayerManager"
 MainGui.ResetOnSpawn = false
@@ -42,13 +40,6 @@ local function MakeDraggable(frame)
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
     end)
-end
-
-local function getCharacterData(plr)
-    local char = plr.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    return char, hum, hrp
 end
 
 --// 3. PAINEL PRINCIPAL (GUI)
@@ -91,24 +82,7 @@ local BtnScroll = Instance.new("ScrollingFrame", RightSide)
 BtnScroll.Size = UDim2.new(1, 0, 1, -125); BtnScroll.Position = UDim2.new(0, 0, 0, 120); BtnScroll.BackgroundTransparency = 1; BtnScroll.ScrollBarThickness = 0
 local BtnLayout = Instance.new("UIListLayout", BtnScroll); BtnLayout.Padding = UDim.new(0, 6); BtnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-local function SetupChar()
-	Char = LP.Character or LP.CharacterAdded:Wait()
-	Hum = Char:WaitForChild("Humanoid")
-	HRP = Char:WaitForChild("HumanoidRootPart")
-end
-
-SetupChar()
-LP.CharacterAdded:Connect(SetupChar)
-
--- =========================
--- CONFIG
--- =========================
-local SPEED = 60
-local VERTICAL_SPEED = 45
-
--- =========================
--- STATE
--- =========================
+--// 4. LÓGICA DE MOVIMENTAÇÃO
 local function stopFollow()
     isFollowing = false
     if followConnection then followConnection:Disconnect(); followConnection = nil end
@@ -131,13 +105,33 @@ local function startFollow(targetPlayer)
             local myChar = LocalPlayer.Character
             if myChar and myChar:FindFirstChild("Humanoid") then
                 local targetHRP = targetPlayer.Character.HumanoidRootPart
-                -- Move o personagem para a posição do alvo com um offset
                 myChar.Humanoid:MoveTo(targetHRP.Position + targetHRP.CFrame.LookVector * -FOLLOW_DISTANCE)
             end
         else
             stopFollow()
         end
     end)
+end
+
+local function ToggleSpectate(p)
+    local Camera = workspace.CurrentCamera
+    if isSpectating or not p then
+        isSpectating = false
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            Camera.CameraSubject = LocalPlayer.Character.Humanoid
+        end
+        if spectateBtnReference then
+            spectateBtnReference.Text = "Spectate"
+            spectateBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+        end
+    else
+        if p.Character and p.Character:FindFirstChild("Humanoid") then
+            isSpectating = true
+            Camera.CameraSubject = p.Character.Humanoid
+            spectateBtnReference.Text = "Stop Spectate"
+            spectateBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        end
+    end
 end
 
 --// 5. FUNÇÕES DOS BOTÕES
@@ -157,37 +151,19 @@ local function CreateBtn(txt, callback)
     end)
 end
 
-local function ToggleSpectate(p)
-    local Camera = workspace.CurrentCamera
-    if isSpectating or not p then
-        isSpectating = false
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            Camera.CameraSubject = LocalPlayer.Character.Humanoid
-        end
-        spectateBtnReference.Text = "Spectate"; spectateBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-    else
-        if p.Character and p.Character:FindFirstChild("Humanoid") then
-            isSpectating = true
-            Camera.CameraSubject = p.Character.Humanoid
-            spectateBtnReference.Text = "Stop Spectate"; spectateBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-        end
-    end
-end
---// 5. FUNÇÕES DOS BOTÕES
-
--- Criação dos botões de ação
 CreateBtn("Follow", function(p)
-   if flying then
-			stopFly()
-		else
-			startFly()
-		end
+    if isFollowing then stopFollow() else startFollow(p) end
 end)
 
 CreateBtn("Spectate", function(p) ToggleSpectate(p) end)
-CreateBtn("Teleport", function(p) if p.Character then LocalPlayer.Character:PivotTo(p.Character:GetPivot()) end end)
 
---// 6. LISTA DE PLAYERS E ATUALIZAÇÃO
+CreateBtn("Teleport", function(p) 
+    if p.Character and LocalPlayer.Character then 
+        LocalPlayer.Character:PivotTo(p.Character:GetPivot()) 
+    end 
+end)
+
+--// 6. LISTA DE PLAYERS
 local function CreateRow(p)
     local Row = Instance.new("TextButton", List)
     Row.Size = UDim2.new(1, -8, 0, 45); Row.BackgroundColor3 = Color3.fromRGB(35, 35, 40); Row.Text = ""; Instance.new("UICorner", Row)
@@ -195,7 +171,12 @@ local function CreateRow(p)
     local MiniIcon = Instance.new("ImageLabel", Row)
     MiniIcon.Size = UDim2.new(0, 32, 0, 32); MiniIcon.Position = UDim2.new(0, 8, 0.5, -16); MiniIcon.BackgroundTransparency = 1
     Instance.new("UICorner", MiniIcon).CornerRadius = UDim.new(1, 0)
-    task.spawn(function() MiniIcon.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
+    
+    task.spawn(function() 
+        pcall(function()
+            MiniIcon.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+        end)
+    end)
 
     local PlayerName = Instance.new("TextLabel", Row)
     PlayerName.Size = UDim2.new(1, -55, 1, 0); PlayerName.Position = UDim2.new(0, 48, 0, 0); PlayerName.BackgroundTransparency = 1; PlayerName.Text = p.DisplayName; PlayerName.TextColor3 = Color3.fromRGB(220, 220, 220); PlayerName.Font = Enum.Font.GothamMedium; PlayerName.TextSize = 12; PlayerName.TextXAlignment = Enum.TextXAlignment.Left
@@ -203,13 +184,16 @@ local function CreateRow(p)
     Row.MouseButton1Click:Connect(function()
         selectedPlayer = p
         NameLabel.Text = p.DisplayName
-        BigIcon.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+        pcall(function()
+            BigIcon.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+        end)
         
-        -- Atualiza visual do botão Follow baseado no novo player selecionado
-        if FOLLOW_CONFIG.Enabled and FOLLOW_CONFIG.Target == p then
-            followBtnReference.Text = "Stop Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        if isFollowing and selectedPlayer == p then
+            followBtnReference.Text = "Stop Follow"
+            followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
         else
-            followBtnReference.Text = "Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+            followBtnReference.Text = "Follow"
+            followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
         end
     end)
 end
@@ -225,11 +209,9 @@ end
 
 Refresh()
 SearchInput:GetPropertyChangedSignal("Text"):Connect(Refresh)
-Players.PlayerAdded:Connect(Refresh); Players.PlayerRemoving:Connect(Refresh)
+Players.PlayerAdded:Connect(Refresh)
+Players.PlayerRemoving:Connect(Refresh)
 
--- Tecla para abrir (Fim da página ou Custom)
 _G.TogglePlayerPanel = function()
     Master.Visible = not Master.Visible
 end
-
--- Exemplo: Abrir com a tecla 'L'
