@@ -1,8 +1,6 @@
 local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 --// 1. CONFIGURAÇÕES E ESTADOS GLOBAIS
@@ -19,13 +17,11 @@ local TargetParent = (RunService:IsStudio() and LocalPlayer:WaitForChild("Player
 local MainGui = Instance.new("ScreenGui")
 MainGui.Name = "Complex_PlayerManager"
 MainGui.ResetOnSpawn = false
-MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-MainGui.DisplayOrder = 100
 MainGui.Parent = TargetParent
 
 --// FUNÇÕES AUXILIARES
 local function MakeDraggable(frame)
-    local dragging, dragInput, dragStart, startPos
+    local dragging, dragStart, startPos
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true; dragStart = input.Position; startPos = frame.Position
@@ -42,12 +38,12 @@ local function MakeDraggable(frame)
     end)
 end
 
---// 3. PAINEL PRINCIPAL (GUI)
+--// 3. PAINEL PRINCIPAL
 local Master = Instance.new("CanvasGroup", MainGui)
 Master.Size = UDim2.new(0, 450, 0, 300)
 Master.Position = UDim2.new(0.5, -225, 0.5, -150)
 Master.BackgroundColor3 = Color3.fromRGB(20, 20, 23)
-Master.Visible = false
+Master.Visible = true 
 Instance.new("UICorner", Master).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Master).Color = Color3.fromRGB(0, 150, 255)
 MakeDraggable(Master)
@@ -57,16 +53,15 @@ local LeftSide = Instance.new("Frame", Master)
 LeftSide.Size = UDim2.new(0, 170, 1, -30); LeftSide.Position = UDim2.new(0, 15, 0, 15); LeftSide.BackgroundTransparency = 1
 
 local SearchInput = Instance.new("TextBox", LeftSide)
-SearchInput.Text = ""
 SearchInput.Size = UDim2.new(1, 0, 0, 35); SearchInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-SearchInput.PlaceholderText = "Pesquisar..."; SearchInput.TextColor3 = Color3.fromRGB(255, 255, 255); SearchInput.Font = Enum.Font.GothamMedium; SearchInput.TextSize = 13
+SearchInput.PlaceholderText = "Pesquisar..."; SearchInput.TextColor3 = Color3.fromRGB(255, 255, 255); SearchInput.Font = Enum.Font.GothamMedium; SearchInput.TextSize = 13; SearchInput.Text = ""
 Instance.new("UICorner", SearchInput)
 
 local List = Instance.new("ScrollingFrame", LeftSide)
 List.Size = UDim2.new(1, 0, 1, -45); List.Position = UDim2.new(0, 0, 0, 45); List.BackgroundTransparency = 1; List.ScrollBarThickness = 0
 local ListLayout = Instance.new("UIListLayout", List); ListLayout.Padding = UDim.new(0, 6)
 
--- Lado Direito (Info/Ações)
+-- Lado Direito (Info)
 local RightSide = Instance.new("Frame", Master)
 RightSide.Size = UDim2.new(1, -210, 1, -30); RightSide.Position = UDim2.new(0, 195, 0, 15); RightSide.BackgroundTransparency = 1
 
@@ -93,7 +88,7 @@ local function stopFollow()
 end
 
 local function startFollow(targetPlayer)
-    if isFollowing then stopFollow() end
+    stopFollow()
     if not targetPlayer or targetPlayer == LocalPlayer then return end
     
     isFollowing = true
@@ -101,13 +96,15 @@ local function startFollow(targetPlayer)
     followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
     
     followConnection = RunService.RenderStepped:Connect(function()
-        if isFollowing and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local myChar = LocalPlayer.Character
-            if myChar and myChar:FindFirstChild("Humanoid") then
-                local targetHRP = targetPlayer.Character.HumanoidRootPart
-                myChar.Humanoid:MoveTo(targetHRP.Position + targetHRP.CFrame.LookVector * -FOLLOW_DISTANCE)
-            end
+        if not isFollowing then stopFollow() return end
+        
+        local targetChar = targetPlayer.Character
+        local myChar = LocalPlayer.Character
+        
+        if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and myChar and myChar:FindFirstChild("Humanoid") then
+            myChar.Humanoid:MoveTo(targetChar.HumanoidRootPart.Position + targetChar.HumanoidRootPart.CFrame.LookVector * -FOLLOW_DISTANCE)
         else
+            -- Se o alvo sumir ou você morrer, ele não crasha, apenas para de seguir
             stopFollow()
         end
     end)
@@ -120,31 +117,24 @@ local function ToggleSpectate(p)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             Camera.CameraSubject = LocalPlayer.Character.Humanoid
         end
-        if spectateBtnReference then
-            spectateBtnReference.Text = "Spectate"
-            spectateBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-        end
+        spectateBtnReference.Text = "Spectate"; spectateBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
     else
         if p.Character and p.Character:FindFirstChild("Humanoid") then
             isSpectating = true
             Camera.CameraSubject = p.Character.Humanoid
-            spectateBtnReference.Text = "Stop Spectate"
-            spectateBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+            spectateBtnReference.Text = "Stop Spectate"; spectateBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
         end
     end
 end
 
---// 5. FUNÇÕES DOS BOTÕES
+--// 5. CRIAÇÃO DOS BOTÕES
 local function CreateBtn(txt, callback)
     local b = Instance.new("TextButton", BtnScroll)
     b.Size = UDim2.new(0.9, 0, 0, 35); b.BackgroundColor3 = Color3.fromRGB(45, 45, 50); b.Text = txt; b.TextColor3 = Color3.fromRGB(255, 255, 255); b.Font = Enum.Font.GothamBold; b.TextSize = 12
     Instance.new("UICorner", b)
     
-    if txt == "Follow" then 
-        followBtnReference = b 
-    elseif txt == "Spectate" then 
-        spectateBtnReference = b 
-    end
+    if txt == "Follow" then followBtnReference = b 
+    elseif txt == "Spectate" then spectateBtnReference = b end
     
     b.MouseButton1Click:Connect(function() 
         if selectedPlayer then callback(selectedPlayer) end 
@@ -173,9 +163,8 @@ local function CreateRow(p)
     Instance.new("UICorner", MiniIcon).CornerRadius = UDim.new(1, 0)
     
     task.spawn(function() 
-        pcall(function()
-            MiniIcon.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-        end)
+        local content, isReady = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+        MiniIcon.Image = content
     end)
 
     local PlayerName = Instance.new("TextLabel", Row)
@@ -184,16 +173,14 @@ local function CreateRow(p)
     Row.MouseButton1Click:Connect(function()
         selectedPlayer = p
         NameLabel.Text = p.DisplayName
-        pcall(function()
+        task.spawn(function()
             BigIcon.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
         end)
         
         if isFollowing and selectedPlayer == p then
-            followBtnReference.Text = "Stop Follow"
-            followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+            followBtnReference.Text = "Stop Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
         else
-            followBtnReference.Text = "Follow"
-            followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+            followBtnReference.Text = "Follow"; followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
         end
     end)
 end
