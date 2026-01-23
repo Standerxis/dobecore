@@ -262,15 +262,61 @@ end)
 --// BOTÕES E FINALIZAÇÃO
 local function CreateRow(p)
     local Row = Instance.new("TextButton", List)
-    Row.Size = UDim2.new(1, -8, 0, 40)
+    Row.Size = UDim2.new(1, -8, 0, 45) -- Aumentei a altura para 45 para o ícone respirar
     Row.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-    Row.Text = p.DisplayName
-    Row.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Instance.new("UICorner", Row)
+    Row.Text = "" -- Deixamos o texto vazio para usar um Label customizado
+    Row.ZIndex = 4
+    Row.AutoButtonColor = true
+    Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 8)
+    
+    -- Stroke suave para a linha
+    local RowStroke = Instance.new("UIStroke", Row)
+    RowStroke.Color = Color3.fromRGB(255, 255, 255)
+    RowStroke.Transparency = 0.9
+    RowStroke.Thickness = 1
+
+    -- Mini Ícone do Player
+    local MiniIcon = Instance.new("ImageLabel", Row)
+    MiniIcon.Size = UDim2.new(0, 32, 0, 32)
+    MiniIcon.Position = UDim2.new(0, 8, 0.5, -16)
+    MiniIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    MiniIcon.ZIndex = 5
+    Instance.new("UICorner", MiniIcon).CornerRadius = UDim.new(1, 0) -- Redondinho
+
+    -- Carregar a Thumbnail (Headshot)
+    task.spawn(function()
+        local content, isReady = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+        MiniIcon.Image = content
+    end)
+
+    -- Label do Nome (Empurrado para a direita do ícone)
+    local PlayerName = Instance.new("TextLabel", Row)
+    PlayerName.Size = UDim2.new(1, -55, 1, 0)
+    PlayerName.Position = UDim2.new(0, 48, 0, 0)
+    PlayerName.BackgroundTransparency = 1
+    PlayerName.Text = p.DisplayName
+    PlayerName.TextColor3 = Color3.fromRGB(220, 220, 220)
+    PlayerName.Font = Enum.Font.GothamMedium
+    PlayerName.TextSize = 12
+    PlayerName.TextXAlignment = Enum.TextXAlignment.Left
+    PlayerName.ZIndex = 5
+
+    -- Lógica de Seleção (Integrada com o que fizemos antes)
     Row.MouseButton1Click:Connect(function()
         selectedPlayer = p
         NameLabel.Text = p.DisplayName
         BigIcon.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+        
+        -- Atualiza o botão de follow se ele existir
+        if followBtnReference then
+            if FOLLOW_STATE.Enabled and FOLLOW_STATE.Target == p then
+                followBtnReference.Text = "Stop Follow"
+                followBtnReference.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+            else
+                followBtnReference.Text = "Follow"
+                followBtnReference.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+            end
+        end
     end)
 end
 
