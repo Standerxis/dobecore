@@ -6,6 +6,26 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Standerxis/dobecore/refs/heads/main/lib.lua"))()
 
+-- Lógica para encontrar a ScreenGui de qualquer forma:
+local ParentGui = nil
+if Library and Library.ScreenGui then
+    ParentGui = Library.ScreenGui
+else
+    -- Se a Lib não retornar, procuramos no PlayerGui pelo nome comum
+    ParentGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("ScreenGui") or 
+                LocalPlayer.PlayerGui:FindFirstChildOfClass("ScreenGui")
+end
+
+-- Se ainda assim for nil, criamos uma temporária para não crashar o script
+if not ParentGui then
+    ParentGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+    ParentGui.Name = "BackupGui"
+end
+
+if ParentGui:IsA("ScreenGui") then
+    ParentGui.DisplayOrder = 100 
+end
+
 
 --// CONFIGURAÇÕES DE PROFUNDIDADE
 local MAX_ZINDEX = 5000
