@@ -254,8 +254,3 @@ _G.TogglePlayerPanel = function()
 end
 
 -- Exemplo: Abrir com a tecla 'L'
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.L then
-        _G.TogglePlayerPanel()
-    end
-end)
