@@ -12,6 +12,7 @@ local TargetParent = (RunService:IsStudio() and LocalPlayer.PlayerGui) or
 local MainGui = Instance.new("ScreenGui")
 MainGui.Name = "Independent_PlayerManager"
 MainGui.ResetOnSpawn = false
+MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 MainGui.DisplayOrder = 100
 MainGui.Parent = TargetParent
 
@@ -93,7 +94,7 @@ Master.Name = "PlayerManager_Custom"
 Master.Size = UDim2.new(0, 450, 0, 300)
 Master.Position = UDim2.new(0.5, -225, 0.5, -150)
 Master.BackgroundColor3 = Color3.fromRGB(20, 20, 23)
-Master.ZIndex = 4800
+Master.ZIndex = 1
 Master.Visible = false
 Master.GroupTransparency = 1
 Instance.new("UICorner", Master).CornerRadius = UDim.new(0, 12)
