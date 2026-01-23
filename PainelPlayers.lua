@@ -1,12 +1,10 @@
-local Library = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/Standerxis/dobecore/refs/heads/main/lib.lua"
-))()
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Standerxis/dobecore/refs/heads/main/lib.lua"))()
 
 
 --// CONFIGURAÇÕES DE PROFUNDIDADE
