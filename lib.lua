@@ -579,6 +579,60 @@ end
     return Panel
 end
 
+--// CORREÇÃO DA BARRA FLUTUANTE GLOBAL
+local SearchContainer = Instance.new("Frame", ScreenGui) -- Parent no ScreenGui para flutuar fora do painel
+SearchContainer.Name = "GlobalSearch"
+SearchContainer.Size = UDim2.fromOffset(200, 35)
+-- Posiciona em relação à tela ou ao topo do Main
+SearchContainer.Position = Main.Position + UDim2.new(0, 150, 0, -45) 
+SearchContainer.BackgroundColor3 = Theme.Sidebar
+SearchContainer.ZIndex = 100 
+
+Instance.new("UICorner", SearchContainer).CornerRadius = UDim.new(0, 8)
+local sStroke = Instance.new("UIStroke", SearchContainer)
+sStroke.Color = Theme.ItemStroke
+sStroke.Thickness = 1.2
+
+local SearchInput = Instance.new("TextBox", SearchContainer)
+SearchInput.Size = UDim2.new(1, -10, 1, 0)
+SearchInput.Position = UDim2.new(0, 10, 0, 0)
+SearchInput.BackgroundTransparency = 1
+SearchInput.Text = ""
+SearchInput.PlaceholderText = "Pesquisar no Script..."
+SearchInput.TextColor3 = Theme.Text
+SearchInput.Font = Enum.Font.Gotham
+SearchInput.TextSize = 14
+SearchInput.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Torna a barra de pesquisa arrastável também (opcional)
+MakeDraggable(SearchContainer)
+
+--// LÓGICA DE PESQUISA FUNCIONAL
+SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
+    local searchText = SearchInput.Text:lower()
+    
+    -- Varre todas as páginas dentro do seu PagesFolder
+    for _, Page in pairs(PagesFolder:GetChildren()) do
+        -- Varre os elementos (Botões, Toggles, etc)
+        -- Se seus botões estiverem dentro de um ScrollingFrame, use Page.ScrollingFrame:GetChildren()
+        for _, element in pairs(Page:GetChildren()) do 
+            if element:IsA("Frame") or element:IsA("TextButton") then
+                -- Tenta achar o título do botão/recurso
+                local titleLabel = element:FindFirstChild("Title", true) or element:FindFirstChildOfClass("TextLabel", true)
+                
+                if titleLabel then
+                    local name = titleLabel.Text:lower()
+                    if string.find(name, searchText) then
+                        element.Visible = true
+                    else
+                        element.Visible = false
+                    end
+                end
+            end
+        end
+    end
+end)
+
 --// CONSTRUÇÃO DA JANELA PRINCIPAL
 function Library:Window(config)
     local WindowTable = {}
@@ -703,27 +757,6 @@ function Library:Window(config)
     SearchInput.TextXAlignment = Enum.TextXAlignment.Left
     SearchInput.ZIndex = 11
 
-    -- Função de Busca
-    SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
-        local InputText = SearchInput.Text:lower()
-        
-        -- Percorre todas as páginas dentro do PagesFolder
-        for _, Page in pairs(PagesFolder:GetChildren()) do
-            -- Percorre todos os itens dentro da página (Buttons, Toggles, etc)
-            for _, Element in pairs(Page:GetChildren()) do
-                -- Verifica se o elemento tem um texto (ajuste 'Title' para o nome do objeto de texto no seu script)
-                local Label = Element:FindFirstChild("Title") or Element:FindFirstChildOfClass("TextLabel")
-                
-                if Label then
-                    if string.find(Label.Text:lower(), InputText) then
-                        Element.Visible = true
-                    else
-                        Element.Visible = false
-                    end
-                end
-            end
-        end
-    end)
     
     local PagesFolder = Instance.new("Folder", PageContainer)
 
