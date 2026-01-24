@@ -987,9 +987,10 @@ local function AddExtras(parent, options, callback)
                     Library.Flags.Binds[flag] = selectedKey.Name
                     blockKeyUntilRelease = selectedKey
 
-                    if Library.UpdateKeybindRender then
-                      Library:UpdateKeybindRender()
+                    if UpdateKeybindRender then 
+                          UpdateKeybindRender() 
                     end
+
                     conInput:Disconnect()
                     resetVisual()
 
