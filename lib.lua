@@ -667,60 +667,62 @@ function Library:Window(config)
     PageContainer.ClipsDescendants = true
     PageContainer.ZIndex = 2
 
-
-    --// SEARCH BAR (ESTILO iOS FLUTUANTE)
-    local SearchContainer = Instance.new("Frame", PageContainer)
-    SearchContainer.Name = "SearchContainer"
-    SearchContainer.Size = UDim2.new(1, -40, 0, 36)
-    SearchContainer.Position = UDim2.new(0, 20, 0, 15) -- Margem de 20px
-    SearchContainer.BackgroundColor3 = Theme.Sidebar -- Ou uma cor levemente mais clara que o fundo
-    SearchContainer.ZIndex = 5
+--// SEARCH BAR FLUTUANTE (OVERLAY)
+    local SearchContainer = Instance.new("Frame", Main)
+    SearchContainer.Name = "GlobalSearch"
+    SearchContainer.Size = UDim2.new(0, 200, 0, 32)
+    -- Posiciona no topo direito, levemente para fora ou alinhado à borda
+    SearchContainer.Position = UDim2.new(1, -210, 0, 10) 
+    SearchContainer.BackgroundColor3 = Theme.Sidebar
+    SearchContainer.ZIndex = 10 -- Garante que fique acima de tudo
     
-    local SearchCorner = Instance.new("UICorner", SearchContainer)
-    SearchCorner.CornerRadius = UDim.new(0, 10) -- Cantos estilo iOS
+    Instance.new("UICorner", SearchContainer).CornerRadius = UDim.new(0, 8)
+    local sStroke = Instance.new("UIStroke", SearchContainer)
+    sStroke.Color = Theme.ItemStroke
+    sStroke.Transparency = 0.5
 
-    local SearchStroke = Instance.new("UIStroke", SearchContainer)
-    SearchStroke.Color = Theme.ItemStroke
-    SearchStroke.Transparency = 0.5
-    SearchStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-    -- Ícone de Lupa (Utilizando um Asset ID de sistema ou caractere especial)
     local SearchIcon = Instance.new("ImageLabel", SearchContainer)
-    SearchIcon.Name = "Icon"
-    SearchIcon.Size = UDim2.fromOffset(16, 16)
-    SearchIcon.Position = UDim2.new(0, 10, 0.5, 0)
+    SearchIcon.Size = UDim2.fromOffset(14, 14)
+    SearchIcon.Position = UDim2.new(0, 8, 0.5, 0)
     SearchIcon.AnchorPoint = Vector2.new(0, 0.5)
     SearchIcon.BackgroundTransparency = 1
-    SearchIcon.Image = "rbxassetid://6031154667" -- Ícone de lupa minimalista
+    SearchIcon.Image = "rbxassetid://6031154667"
     SearchIcon.ImageColor3 = Theme.SubText
-    SearchIcon.ZIndex = 6
+    SearchIcon.ZIndex = 11
 
     local SearchInput = Instance.new("TextBox", SearchContainer)
-    SearchInput.Name = "SearchInput"
-    SearchInput.Size = UDim2.new(1, -40, 1, 0)
-    SearchInput.Position = UDim2.new(0, 35, 0, 0)
+    SearchInput.Size = UDim2.new(1, -35, 1, 0)
+    SearchInput.Position = UDim2.new(0, 30, 0, 0)
     SearchInput.BackgroundTransparency = 1
     SearchInput.Text = ""
-    SearchInput.PlaceholderText = "Procurar recursos..."
+    SearchInput.PlaceholderText = "Buscar..."
     SearchInput.PlaceholderColor3 = Theme.SubText
     SearchInput.TextColor3 = Theme.Text
     SearchInput.Font = Enum.Font.Gotham
-    SearchInput.TextSize = 14
+    SearchInput.TextSize = 13
     SearchInput.TextXAlignment = Enum.TextXAlignment.Left
-    SearchInput.ZIndex = 6
+    SearchInput.ZIndex = 11
 
-    -- Ajuste o PageContainer para os itens não ficarem embaixo da barra
-    -- (Opcional: Se você tiver um scrolling frame de itens, ele deve começar em UDim2.new(0,0,0,65))
-    
-    -- Efeito de Foco (Animação estilo iOS)
-    SearchInput.Focused:Connect(function()
-        TweenService:Create(SearchStroke, TweenInfo.new(0.3), {Color = Theme.Accent or Color3.fromRGB(0, 122, 255)}):Play()
-        TweenService:Create(SearchContainer, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Background}):Play()
-    end)
-
-    SearchInput.FocusLost:Connect(function()
-        TweenService:Create(SearchStroke, TweenInfo.new(0.3), {Color = Theme.ItemStroke}):Play()
-        TweenService:Create(SearchContainer, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Sidebar}):Play()
+    -- Função de Busca
+    SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
+        local InputText = SearchInput.Text:lower()
+        
+        -- Percorre todas as páginas dentro do PagesFolder
+        for _, Page in pairs(PagesFolder:GetChildren()) do
+            -- Percorre todos os itens dentro da página (Buttons, Toggles, etc)
+            for _, Element in pairs(Page:GetChildren()) do
+                -- Verifica se o elemento tem um texto (ajuste 'Title' para o nome do objeto de texto no seu script)
+                local Label = Element:FindFirstChild("Title") or Element:FindFirstChildOfClass("TextLabel")
+                
+                if Label then
+                    if string.find(Label.Text:lower(), InputText) then
+                        Element.Visible = true
+                    else
+                        Element.Visible = false
+                    end
+                end
+            end
+        end
     end)
     
     local PagesFolder = Instance.new("Folder", PageContainer)
