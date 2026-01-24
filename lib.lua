@@ -894,36 +894,6 @@ end
 -- ==========================================================
 -- SEU CÓDIGO ORIGINAL (AddExtras) - NÃO ALTERADO
 -- ==========================================================
-
--- Variáveis de controle
-local ToggleUI -- Será definida na criação do botão flutuante
-
---// FUNÇÃO CENTRAL PARA ABRIR/FECHAR
--- Colocamos aqui para que tanto o teclado quanto os botões usem a mesma lógica
-local function ToggleMenu()
-    if Main then
-        UIOn = not UIOn
-        Main.Visible = UIOn
-        
-        -- Feedback visual no botão flutuante se ele existir
-        if ToggleUI then
-            Library:Tween(ToggleUI, {Size = UDim2.fromOffset(45, 45)}, 0.05)
-            task.delay(0.05, function()
-                Library:Tween(ToggleUI, {Size = UDim2.fromOffset(50, 50)}, 0.1)
-            end)
-        end
-    end
-end
-
---// OUVINTE DE TECLADO GLOBAL
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Library.ToggleKey then
-        ToggleMenu()
-    end
-end)
-
---// MODIFICAÇÃO NO ADDEXTRAS (Adicionando suporte a mudança de tecla)
 local function AddExtras(parent, options, callback)
     if not options then return end
     
@@ -1017,26 +987,20 @@ local function AddExtras(parent, options, callback)
                     Library.Flags.Binds[flag] = selectedKey.Name
                     blockKeyUntilRelease = selectedKey
 
-                    -- ADIÇÃO: Avisa que a tecla mudou
-                    if callback then callback("KeyChanged", selectedKey) end
-
                     conInput:Disconnect()
                     resetVisual()
 
                 elseif input.UserInputType == Enum.UserInputType.MouseButton1
                     or input.UserInputType == Enum.UserInputType.MouseButton2 then
                     
-                    local unk = Enum.KeyCode.Unknown
                     if type(options.Keybind) == "table" then
-                        options.Keybind.Value = unk
+                        options.Keybind.Value = Enum.KeyCode.Unknown
                     else
-                        options.Keybind = unk
+                        options.Keybind = Enum.KeyCode.Unknown
                     end
                     
-                    Library.Flags.Binds[flag] = unk.Name
-                    blockKeyUntilRelease = unk
-
-                    if callback then callback("KeyChanged", unk) end
+                    Library.Flags.Binds[flag] = Enum.KeyCode.Unknown.Name
+                    blockKeyUntilRelease = Enum.KeyCode.Unknown
 
                     conInput:Disconnect()
                     resetVisual()
@@ -1051,7 +1015,9 @@ local function AddExtras(parent, options, callback)
             if checkKey == Enum.KeyCode.Unknown then return end
             if input.KeyCode ~= checkKey then return end
 
-            if blockKeyUntilRelease == checkKey then return end
+            if blockKeyUntilRelease == checkKey then
+                return
+            end
 
             if callback then
                 callback("Trigger")
@@ -1065,7 +1031,7 @@ local function AddExtras(parent, options, callback)
         end)
     end
 
-    -- Parte de cores (Mantida igual)
+    -- 2. COLOR PICKER (inalterado)
     if options.Color then
         local ColorInd = Instance.new("TextButton", parent)
         ColorInd.Size = UDim2.fromOffset(20, 20)
@@ -1816,21 +1782,15 @@ end
         return TabFuncs
     end
 
-    -- Essa função é o "cérebro". Sempre que for chamada, ela inverte o estado do menu.
-
     if config.ServerTab then WindowTable:Tab("Servidores", "rbxassetid://9692125126") end
-
-    -- Toggle flutuante
-
-  -- Toggle Flutuante (Botão Redondo)
-    --// Toggle Flutuante (Botão Redondo)
+--// Toggle Flutuante (Botão Redondo)
     local ToggleUI = Instance.new("TextButton", ScreenGui)
     ToggleUI.Name = "FloatingToggle"
     ToggleUI.Size = UDim2.fromOffset(50, 50)
     ToggleUI.Position = UDim2.new(0, 30, 0.4, 0)
     ToggleUI.BackgroundColor3 = Theme.Background
     ToggleUI.Text = "" 
-    ToggleUI.ZIndex = 1000 -- Bem alto para ficar sobre tudo
+    ToggleUI.ZIndex = 1000 
     
     Instance.new("UICorner", ToggleUI).CornerRadius = UDim.new(1, 0)
     
@@ -1844,10 +1804,10 @@ end
     Logo.Position = UDim2.fromScale(0.5, 0.5)
     Logo.AnchorPoint = Vector2.new(0.5, 0.5)
     Logo.BackgroundTransparency = 1
-    Logo.Image = "rbxassetid://109406051515132" -- Substitua pelo seu ID
+    Logo.Image = "rbxassetid://109406051515132"
     Logo.ZIndex = 1001
 
-    -- Animação de Hover na borda (Cinza -> Azul)
+    -- Animação de Hover
     ToggleUI.MouseEnter:Connect(function()
         Library:Tween(TStroke, {Color = Theme.Accent}, 0.2)
     end)
@@ -1855,7 +1815,7 @@ end
         Library:Tween(TStroke, {Color = Theme.ItemStroke}, 0.2)
     end)
 
-    -- Lógica de Arrastar e Clicar (Sem conflitos)
+    -- Lógica de Arrastar e Clicar
     local dragging, dragStart, startPos, hasMoved
     
     ToggleUI.InputBegan:Connect(function(input)
@@ -1863,15 +1823,13 @@ end
             dragging = true
             dragStart = input.Position
             startPos = ToggleUI.Position
-            hasMoved = false -- Resetamos o estado de movimento
+            hasMoved = false 
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
-            
-            -- Se moveu mais de 5 pixels, consideramos um "arrasto" e não um "clique"
             if delta.Magnitude > 5 then
                 hasMoved = true
             end
@@ -1885,60 +1843,75 @@ end
         end
     end)
 
+    -- Função auxiliar para alternar o menu com animação
+    local function ToggleMenu()
+        UIOn = not UIOn
+        Main.Visible = UIOn
+        
+        -- Pequena animação de clique (escala) para feedback
+        Library:Tween(ToggleUI, {Size = UDim2.fromOffset(45, 45)}, 0.05)
+        task.wait(0.05)
+        Library:Tween(ToggleUI, {Size = UDim2.fromOffset(50, 50)}, 0.1)
+    end
+
     ToggleUI.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
-            -- SÓ ABRE SE NÃO TIVER ARRASTADO
             if not hasMoved then
-               ToggleMenu()
-                
-                -- Pequena animação de clique (escala)
-                Library:Tween(ToggleUI, {Size = UDim2.fromOffset(45, 45)}, 0.05)
-                task.wait(0.05)
-                Library:Tween(ToggleUI, {Size = UDim2.fromOffset(50, 50)}, 0.1)
+                ToggleMenu()
             end
         end
     end)
 
+    --// NOVA LÓGICA: Atalho RightShift + Tecla Customizada
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end -- Ignora se estiver no chat
+        
+        -- Verifica se apertou RightShift OU a tecla salva nas configurações
+        if input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Library.ToggleKey then
+            ToggleMenu()
+        end
+    end)
+
+    -- RETORNO CORRETO:
     return WindowTable
 end
 
 function Library:CreateSettings(Window)
     local SettingsTab = Window:Tab("Configurações", "rbxassetid://6031280882")
     
-    SettingsTab:Section("Tags CUSTOM")
+    --// 0. SEÇÃO DE TAGS (ADICIONADA)
+    --// 0. SEÇÃO DE TAGS (ADICIONADA)
+SettingsTab:Section("Tags CUSTOM")
 
-    SettingsTab:Toggle("Esconder Todas as Tags", false, function(state)
-        if _G.toggleAllTags then _G.toggleAllTags(state) end
-    end)
+SettingsTab:Toggle("Esconder Todas as Tags", false, function(state)
+    -- Adicionamos _G. para conversar com o arquivo tag.lua
+    if _G.toggleAllTags then
+        _G.toggleAllTags(not state) 
+    end
+end)
 
-    SettingsTab:Toggle("Esconder Minha Tag", false, function(state)
-        if _G.toggleMyTag then _G.toggleMyTag(state) end
-    end)
+SettingsTab:Toggle("Esconder Minha Tag", false, function(state)
+    -- Adicionamos _G. para conversar com o arquivo tag.lua
+    if _G.toggleMyTag then
+        _G.toggleMyTag(not state)
+    end
+end)
 
+    --// 1. PREPARAÇÃO
     local ConfigFolder = "DobeiOS_Configs"
     local ConfigName = "Default"
     local SelectedConfig = nil
     
+    -- Define valores padrão se não existirem
     if not Library.ToggleKey then Library.ToggleKey = Enum.KeyCode.RightControl end
 
+    -- Garante que a pasta existe
     if makefolder and isfolder and not isfolder(ConfigFolder) then 
         makefolder(ConfigFolder) 
     end
 
-    SettingsTab:Section("Atalho do Menu")
-
-    -- Botão de Bind Atualizado
-    SettingsTab:Button("Configurar Tecla", function(mode, NewKey)
-        if mode == "Trigger" or mode == nil then
-            ToggleMenu()
-        elseif mode == "KeyChanged" then
-            Library.ToggleKey = NewKey
-        end
-    end, {
-        Keybind = {Value = Library.ToggleKey},
-        Flag = "MenuBind"
-    })
+    
 
     SettingsTab:Section("GERENCIAR CONFIGS")
 
@@ -1970,8 +1943,12 @@ function Library:CreateSettings(Window)
         if not writefile then return end
         
         local SaveData = {
-            ThemeData = { AccentHex = Theme.Accent:ToHex() },
-            Keybinds = { MenuToggle = Library.ToggleKey.Name },
+            ThemeData = {
+                AccentHex = Theme.Accent:ToHex()
+            },
+            Keybinds = {
+                MenuToggle = Library.ToggleKey.Name 
+            },
             Toggles = Library.Flags.Toggles,
             Binds = Library.Flags.Binds,
             Colors = Library.Flags.Colors
@@ -1980,6 +1957,9 @@ function Library:CreateSettings(Window)
         local success, json = pcall(function() return HttpService:JSONEncode(SaveData) end)
         if success then
             writefile(ConfigFolder .. "/" .. ConfigName .. ".json", json)
+            NotificationService:Create("CriarConfig", "✅ Configuração '"..ConfigName.."' salva!")
+            task.wait(1.2)
+            NotificationService:Remove("CriarConfig")
             ConfigDrop:Refresh(GetConfigs())
         end
     end)
@@ -1987,220 +1967,74 @@ function Library:CreateSettings(Window)
     -- CARREGAR
     SettingsTab:Button("Carregar Configuração", function()
         if not readfile or not SelectedConfig then return end
+        
         local path = ConfigFolder .. "/" .. SelectedConfig .. ".json"
         if isfile(path) then
             local content = readfile(path)
             local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
             
             if success and decoded then
+                -- 1. Carregar Toggles
+                if decoded.Toggles then
+                    for flag, value in pairs(decoded.Toggles) do
+                        if Library.Elements[flag] and Library.Elements[flag].Set then
+                            Library.Elements[flag].Set(value)
+                        end
+                    end
+                end
+
+                -- 2. Carregar Keybinds
+                if decoded.Binds then
+                    for flag, keyName in pairs(decoded.Binds) do
+                        if Library.Elements[flag] and Library.Elements[flag].SetKey then
+                            Library.Elements[flag].SetKey(keyName)
+                        end
+                    end
+                end
+
+                -- 3. Carregar Cores
+                if decoded.Colors then
+                    for flag, rgbTable in pairs(decoded.Colors) do
+                        if Library.Elements[flag] and Library.Elements[flag].SetColor then
+                            Library.Elements[flag].SetColor(rgbTable[1], rgbTable[2], rgbTable[3])
+                        end
+                    end
+                end
+
+                -- 4. Dados do Tema
+                if decoded.ThemeData and decoded.ThemeData.AccentHex then
+                    Theme.Accent = Color3.fromHex(decoded.ThemeData.AccentHex)
+                end
+
+                -- 5. Tecla do Menu
                 if decoded.Keybinds and decoded.Keybinds.MenuToggle then
                     Library.ToggleKey = Enum.KeyCode[decoded.Keybinds.MenuToggle]
                 end
-                -- Lógica de Toggles/Colors... (mantida)
+                
+                if NotificationService then
+                    NotificationService:Create("ConfigLoad", "Configuração carregada com sucesso!")
+                    task.wait(1.2)
+                    NotificationService:Remove("ConfigLoad")
+                end
             end
         end
     end)
-    
-    --// CRIAÇÃO DO BOTÃO FLUTUANTE
-    ToggleUI = Instance.new("TextButton", ScreenGui)
-    ToggleUI.Name = "FloatingToggle"
-    ToggleUI.Size = UDim2.fromOffset(50, 50)
-    ToggleUI.Position = UDim2.new(0, 30, 0.4, 0)
-    ToggleUI.BackgroundColor3 = Theme.Background
-    ToggleUI.Text = "" 
-    ToggleUI.ZIndex = 1000
-    
-    Instance.new("UICorner", ToggleUI).CornerRadius = UDim.new(1, 0)
-    local TStroke = Instance.new("UIStroke", ToggleUI)
-    TStroke.Color = Theme.ItemStroke
-    TStroke.Thickness = 2
 
-    local Logo = Instance.new("ImageLabel", ToggleUI)
-    Logo.Size = UDim2.fromScale(0.8, 0.8)
-    Logo.Position = UDim2.fromScale(0.5, 0.5)
-    Logo.AnchorPoint = Vector2.new(0.5, 0.5)
-    Logo.BackgroundTransparency = 1
-    Logo.Image = "rbxassetid://109406051515132"
-    Logo.ZIndex = 1001
-
-    -- Lógica de Arrastar e Clicar Atualizada para usar ToggleMenu()
-    local dragging, dragStart, startPos, hasMoved
-    ToggleUI.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = ToggleUI.Position
-            hasMoved = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            if delta.Magnitude > 5 then hasMoved = true end
-            ToggleUI.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    ToggleUI.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            if not hasMoved then
-                ToggleMenu() -- Usa a função centralizada!
+    -- DELETAR
+    SettingsTab:Button("Deletar Configuração", function()
+        if not delfile or not SelectedConfig then return end
+        local path = ConfigFolder .. "/" .. SelectedConfig .. ".json"
+        if isfile(path) then
+            delfile(path)
+            ConfigDrop:Refresh(GetConfigs())
+            SelectedConfig = nil
+            if NotificationService then
+                NotificationService:Create("DeleteConfig", "Config deletada.")
+                task.wait(1.2)
+                NotificationService:Remove("DeleteConfig")
             end
         end
     end)
 end
 
 return Library
-
---[[
-
-_G.SystemCore = {}
-_G.SystemCore.Cache = {}
-_G.SystemCore.Threads = {}
-_G.SystemCore.Internal = {}
-
-function _G.SystemCore:Init()
-    local seed = math.random(100000,999999)
-    self.Cache["seed"] = seed
-    return seed
-end
-
-function _G.SystemCore:Encrypt(v)
-    local r = ""
-    for i = 1, #tostring(v) do
-        r = r .. string.char(math.random(33,126))
-    end
-    return r
-end
-
-function _G.SystemCore:Decrypt(v)
-    return tostring(v):reverse()
-end
-
-function _G.SystemCore:Sync()
-    for i = 1, 50 do
-        self.Cache[i] = math.random()
-    end
-end
-
-function _G.SystemCore.Internal:Ping()
-    local x = 0
-    for i = 1, 1000 do
-        x = x + math.sin(i)
-    end
-    return x
-end
-
-function _G.SystemCore.Internal:Heartbeat()
-    local t = tick()
-    repeat
-        t = t + math.random()
-    until t > tick() + 0.01
-end
-
-_G.Loader = {}
-_G.Loader.Version = "v"..math.random(100,999)
-_G.Loader.Status = false
-
-function _G.Loader:Load()
-    self.Status = not self.Status
-    return self.Status
-end
-
-function _G.Loader:Validate(k)
-    if not k then
-        return false
-    end
-    local s = 0
-    for i = 1, #k do
-        s = s + string.byte(k,i)
-    end
-    return s % 2 == 0
-end
-
-_G.AntiDump = {}
-
-function _G.AntiDump:Check()
-    local env = getfenv and getfenv(0) or {}
-    for i,v in pairs(env) do
-        if tostring(i):lower():find("dump") then
-            return false
-        end
-    end
-    return true
-end
-
-function _G.AntiDump:Loop()
-    for i = 1, math.random(10,40) do
-        coroutine.wrap(function()
-            local a = 0
-            for j = 1, 500 do
-                a = a + math.random()
-            end
-        end)()
-    end
-end
-
-_G.Memory = {}
-
-for i = 1, 200 do
-    _G.Memory[i] = {
-        key = tostring(math.random())..tostring(os.clock()),
-        value = math.random(1,999999)
-    }
-end
-
-function _G.Memory:Flush()
-    for i in pairs(self) do
-        self[i] = nil
-    end
-end
-
-function _G.Memory:Randomize()
-    local t = {}
-    for i = 1, 100 do
-        t[i] = math.random()
-    end
-    return t
-end
-
-function FakeFunction_A()
-    local x = 0
-    for i = 1, 10000 do
-        x = x + i
-    end
-    return x
-end
-
-function FakeFunction_B()
-    local str = ""
-    for i = 1, 200 do
-        str = str .. string.char(math.random(65,90))
-    end
-    return str
-end
-
-function FakeFunction_C()
-    return FakeFunction_A() .. tostring(FakeFunction_B())
-end
-
-for i = 1, 100 do
-    _G["FUNC_"..i] = function()
-        return math.random() * os.clock()
-    end
-end
-
--- fake anti reverse
-local function __internal_runtime_validator__()
-    local t = {}
-    for i = 1, 300 do
-        t[i] = math.random()
-    end
-    return t[math.random(1,#t)]
-end
-
-__internal_runtime_validator__()
-
-]]
