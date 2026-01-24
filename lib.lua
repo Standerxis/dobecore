@@ -22,6 +22,61 @@ local HttpService = game:GetService("HttpService")
 local ConfigFile = "DobeVoxify_Config.json"
 local _Config = { Toggles = {}, Binds = {}, Colors = {} }
 
+--// CORREÇÃO DA BARRA FLUTUANTE GLOBAL
+local SearchContainer = Instance.new("Frame", ScreenGui) -- Parent no ScreenGui para flutuar fora do painel
+SearchContainer.Name = "GlobalSearch"
+SearchContainer.Size = UDim2.fromOffset(200, 35)
+-- Posiciona em relação à tela ou ao topo do Main
+SearchContainer.Position = Main.Position + UDim2.new(0, 150, 0, -45) 
+SearchContainer.BackgroundColor3 = Theme.Sidebar
+SearchContainer.ZIndex = 100 
+
+Instance.new("UICorner", SearchContainer).CornerRadius = UDim.new(0, 8)
+local sStroke = Instance.new("UIStroke", SearchContainer)
+sStroke.Color = Theme.ItemStroke
+sStroke.Thickness = 1.2
+
+local SearchInput = Instance.new("TextBox", SearchContainer)
+SearchInput.Size = UDim2.new(1, -10, 1, 0)
+SearchInput.Position = UDim2.new(0, 10, 0, 0)
+SearchInput.BackgroundTransparency = 1
+SearchInput.Text = ""
+SearchInput.PlaceholderText = "Pesquisar no Script..."
+SearchInput.TextColor3 = Theme.Text
+SearchInput.Font = Enum.Font.Gotham
+SearchInput.TextSize = 14
+SearchInput.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Torna a barra de pesquisa arrastável também (opcional)
+MakeDraggable(SearchContainer)
+
+--// LÓGICA DE PESQUISA FUNCIONAL
+SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
+    local searchText = SearchInput.Text:lower()
+    
+    -- Varre todas as páginas dentro do seu PagesFolder
+    for _, Page in pairs(PagesFolder:GetChildren()) do
+        -- Varre os elementos (Botões, Toggles, etc)
+        -- Se seus botões estiverem dentro de um ScrollingFrame, use Page.ScrollingFrame:GetChildren()
+        for _, element in pairs(Page:GetChildren()) do 
+            if element:IsA("Frame") or element:IsA("TextButton") then
+                -- Tenta achar o título do botão/recurso
+                local titleLabel = element:FindFirstChild("Title", true) or element:FindFirstChildOfClass("TextLabel", true)
+                
+                if titleLabel then
+                    local name = titleLabel.Text:lower()
+                    if string.find(name, searchText) then
+                        element.Visible = true
+                    else
+                        element.Visible = false
+                    end
+                end
+            end
+        end
+    end
+end)
+
+
 -- Função para Salvar no Arquivo
 local function SaveSettings()
     if writefile then
@@ -579,6 +634,7 @@ end
     return Panel
 end
 
+
 --// CONSTRUÇÃO DA JANELA PRINCIPAL
 function Library:Window(config)
     local WindowTable = {}
@@ -667,6 +723,43 @@ function Library:Window(config)
     PageContainer.ClipsDescendants = true
     PageContainer.ZIndex = 2
 
+--// SEARCH BAR FLUTUANTE (OVERLAY)
+    local SearchContainer = Instance.new("Frame", Main)
+    SearchContainer.Name = "GlobalSearch"
+    SearchContainer.Size = UDim2.new(0, 200, 0, 32)
+    -- Posiciona no topo direito, levemente para fora ou alinhado à borda
+    SearchContainer.Position = UDim2.new(1, -210, 0, 10) 
+    SearchContainer.BackgroundColor3 = Theme.Sidebar
+    SearchContainer.ZIndex = 10 -- Garante que fique acima de tudo
+    
+    Instance.new("UICorner", SearchContainer).CornerRadius = UDim.new(0, 8)
+    local sStroke = Instance.new("UIStroke", SearchContainer)
+    sStroke.Color = Theme.ItemStroke
+    sStroke.Transparency = 0.5
+
+    local SearchIcon = Instance.new("ImageLabel", SearchContainer)
+    SearchIcon.Size = UDim2.fromOffset(14, 14)
+    SearchIcon.Position = UDim2.new(0, 8, 0.5, 0)
+    SearchIcon.AnchorPoint = Vector2.new(0, 0.5)
+    SearchIcon.BackgroundTransparency = 1
+    SearchIcon.Image = "rbxassetid://6031154667"
+    SearchIcon.ImageColor3 = Theme.SubText
+    SearchIcon.ZIndex = 11
+
+    local SearchInput = Instance.new("TextBox", SearchContainer)
+    SearchInput.Size = UDim2.new(1, -35, 1, 0)
+    SearchInput.Position = UDim2.new(0, 30, 0, 0)
+    SearchInput.BackgroundTransparency = 1
+    SearchInput.Text = ""
+    SearchInput.PlaceholderText = "Buscar..."
+    SearchInput.PlaceholderColor3 = Theme.SubText
+    SearchInput.TextColor3 = Theme.Text
+    SearchInput.Font = Enum.Font.Gotham
+    SearchInput.TextSize = 13
+    SearchInput.TextXAlignment = Enum.TextXAlignment.Left
+    SearchInput.ZIndex = 11
+
+    
     local PagesFolder = Instance.new("Folder", PageContainer)
 
     --// FUNÇÃO EXTRAS (Botões dentro de botões)
@@ -987,10 +1080,9 @@ local function AddExtras(parent, options, callback)
                     Library.Flags.Binds[flag] = selectedKey.Name
                     blockKeyUntilRelease = selectedKey
 
-                    if UpdateKeybindRender then 
-                          UpdateKeybindRender() 
+                    if Library.UpdateKeybindRender then
+                      Library:UpdateKeybindRender()
                     end
-
                     conInput:Disconnect()
                     resetVisual()
 
