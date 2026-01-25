@@ -447,10 +447,10 @@ local Player = S.Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- =========================
--- CONFIGURAÇÕES DE CALIBRAÇÃO (AJUSTE AQUI)
+-- CONFIGURAÇÕES DE CALIBRAÇÃO
 -- =========================
-local AjusteX = 25 -- Aumente este número se ainda estiver clicando para a esquerda
-local AjusteY = 0  -- Ajuste aqui se estiver clicando muito para cima ou para baixo
+local AjusteX = 25 
+local AjusteY = 0  
 
 local Bot = {
     Enabled = false,
@@ -459,22 +459,21 @@ local Bot = {
     LastDelta = nil,
     LastClick = 0,
     LastHookClick = 0,
-    HookCooldown = 0.6,
+    HookCooldown = 0.8, -- Aumentado levemente para estabilidade
+    CanClickMinigame = true, -- Nova trava para evitar cliques múltiplos
     Conn = nil
 }
 
 -- =========================
--- FUNÇÕES DE CÁLCULO (MÉTODO DE PRECISÃO)
+-- FUNÇÕES DE CÁLCULO
 -- =========================
 
 local function GetCorrectClickPos(inst)
     if not inst then return 0, 0 end
-    
     local absPos = inst.AbsolutePosition
     local absSize = inst.AbsoluteSize
     local inset = S.GuiService:GetGuiInset()
     
-    -- Calculamos o centro e aplicamos o Offset Manual para vencer o DPI do celular
     local finalX = absPos.X + (absSize.X / 2) + inset.X + AjusteX
     local finalY = absPos.Y + (absSize.Y / 2) + inset.Y + AjusteY
     
@@ -482,7 +481,6 @@ local function GetCorrectClickPos(inst)
 end
 
 local function Click(x, y)
-    -- Virtual Input Manager disparado sem atraso para Mobile
     S.VIM:SendMouseButtonEvent(x, y, 0, true, game, 1)
     task.wait(0.01)
     S.VIM:SendMouseButtonEvent(x, y, 0, false, game, 1)
@@ -581,7 +579,7 @@ local function StartBot()
     if Bot.Conn then Bot.Conn:Disconnect() end
     Bot.Selling = false
     Bot.MinigameActive = false
-    QuickMsg("CALIBRAÇÃO", "🎯 AjusteX atual: " .. AjusteX)
+    Bot.CanClickMinigame = true
     DoAction("Throw")
 
     task.spawn(function()
@@ -599,7 +597,7 @@ local function StartBot()
 
         local gui = Player.PlayerGui
         
-        -- Hook
+        -- Parte 1: Fisgada (Hook)
         local mid = FindHookTarget()
         if mid and (os.clock() - Bot.LastHookClick >= Bot.HookCooldown) then
             Bot.LastHookClick = os.clock()
@@ -607,9 +605,10 @@ local function StartBot()
             Click(x, y)
         end
 
-        -- Minigame
+        -- Parte 2: Minigame (Ajustado para clique único)
         local catch = gui:FindFirstChild("CatchIndicator")
         local img = catch and catch:FindFirstChild("ImageButton")
+        
         if img then
             local moving, target
             for _, v in ipairs(img:GetDescendants()) do
@@ -625,18 +624,31 @@ local function StartBot()
                 local tX = target.AbsolutePosition.X
                 local delta = mX - tX
 
-                if Bot.LastDelta and math.sign(Bot.LastDelta) ~= math.sign(delta) and tick() - Bot.LastClick > 0.05 then
-                    Bot.LastClick = tick()
-                    local tx, ty = GetCorrectClickPos(target)
-                    Click(tx, ty)
+                -- Só clica se as barras cruzarem E se o clique estiver liberado
+                if Bot.LastDelta and math.sign(Bot.LastDelta) ~= math.sign(delta) then
+                    if Bot.CanClickMinigame and (tick() - Bot.LastClick > 0.15) then
+                        Bot.CanClickMinigame = false -- Trava o clique
+                        Bot.LastClick = tick()
+                        
+                        local tx, ty = GetCorrectClickPos(target)
+                        Click(tx, ty)
+                        
+                        -- Libera o clique após um curto tempo (tempo da barra sair de cima do alvo)
+                        task.delay(0.1, function()
+                            Bot.CanClickMinigame = true
+                        end)
+                    end
                 end
                 Bot.LastDelta = delta
             end
         elseif Bot.MinigameActive then
+            -- Reset de estado quando o minigame some
             Bot.MinigameActive = false
             Bot.LastDelta = nil
+            Bot.CanClickMinigame = true
             QuickMsg("SUCESSO", "Peixe pego!")
-            task.wait(1.5)
+            
+            task.wait(1.2)
             local r = GetRemote()
             if r then r:FireServer("FishDecision", true) end
             task.wait(1)
