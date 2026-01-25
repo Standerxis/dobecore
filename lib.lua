@@ -2142,7 +2142,7 @@ function Library:CreateSettings(Window)
     end)
 
     --// 2. SEÇÃO DE IMPORTS & EXPORTS (AGORA DENTRO DA FUNÇÃO)
-    SettingsTab:Section("IMPORTS & EXPORTS")
+    SettingsTab:Section("IMPORTS e EXPORTS")
 
     local ConfigInput = "" 
 
