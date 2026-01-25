@@ -9,6 +9,57 @@ local LocalPlayer = Players.LocalPlayer
 local UIOn = true
 local Mouse = LocalPlayer:GetMouse()
 
+-- 1. Definições de Pastas e Arquivos
+local ConfigFolder = "MeuHubConfigs"
+local LastConfigPath = ConfigFolder .. "/LastConfig.txt"
+local ConfigName = "Default" -- Nome padrão caso não exista LastConfig
+local _Config = {Toggles = {}, Binds = {}, Colors = {}, Sliders = {}, ThemeData = {}}
+
+-- 2. Garante que a pasta existe
+if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
+
+-- 3. Define qual arquivo será o alvo do carregamento
+local ConfigFile = ConfigFolder .. "/" .. ConfigName .. ".json" -- Fallback
+
+if isfile(LastConfigPath) then
+    local lastUsedName = readfile(LastConfigPath)
+    local potentialPath = ConfigFolder .. "/" .. lastUsedName .. ".json"
+    
+    if isfile(potentialPath) then
+        ConfigFile = potentialPath
+        ConfigName = lastUsedName -- Atualiza o nome atual para o hub saber o que salvar
+    end
+end
+
+-- 4. Função LoadSettings (Deve vir antes da execução)
+local function LoadSettings()
+    if isfile(ConfigFile) then
+        local success, data = pcall(function() 
+            return HttpService:JSONDecode(readfile(ConfigFile)) 
+        end)
+        
+        if success and type(data) == "table" then
+            -- Preenche a tabela global _Config
+            for category, values in pairs(data) do
+                _Config[category] = values
+            end
+            
+            -- Sincroniza com as Flags da Library (se a Library já estiver definida)
+            if Library then
+                 Library.Flags.Toggles = _Config.Toggles or {}
+                Library.Flags.Binds = _Config.Binds or {}
+                Library.Flags.Colors = _Config.Colors or {}
+                Library.Flags.Sliders = _Config.Sliders or {} -- ADICIONE ESTA LINHA
+            end
+        end
+    end
+end
+
+-- 5. Executa o carregamento ANTES de criar a UI
+LoadSettings()
+
+-- ... Agora vem a criação da Library, Tabs e Toggles ...
+
 local ToggleKey = Enum.KeyCode.RightControl -- Tecla para abrir/fechar o menu
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -35,32 +86,6 @@ local function SaveSettings()
         writefile(ConfigFile, HttpService:JSONEncode(dataToSave))
     end
 end
-
--- Função para Carregar do Arquivo
-local function LoadSettings()
-    if isfile and isfile(ConfigFile) then
-        local success, data = pcall(function() return HttpService:JSONDecode(readfile(ConfigFile)) end)
-        if success and type(data) == "table" then
-            -- Em vez de _Config = data, vamos preencher os valores
-            for category, values in pairs(data) do
-                if type(values) == "table" then
-                    _Config[category] = _Config[category] or {}
-                    for k, v in pairs(values) do
-                        _Config[category][k] = v
-                    end
-                end
-            end
-            
-            -- Sincroniza com as Flags da Library (se já existirem)
-            if Library and Library.Flags then
-                Library.Flags.Toggles = _Config.Toggles or {}
-                Library.Flags.Binds = _Config.Binds or _Config.Keybinds or {} -- Ajuste para aceitar "Keybinds" do seu JSON
-                Library.Flags.Colors = _Config.Colors or {}
-            end
-        end
-    end
-end
-LoadSettings() -- Carrega ao iniciar
 
 --// DETECÇÃO DE EXECUTOR E PROTEÇÃO
 local function GetGuiParent()
@@ -100,7 +125,8 @@ Library.Elements = {} -- Armazenará as funções de atualização de cada toggl
 Library.Flags = {
     Toggles = {},
     Binds = {},
-    Colors = {}
+    Colors = {},
+    Sliders = {} -- ADICIONE ESTA LINHA
 }
 
 local TweenService = game:GetService("TweenService")
@@ -1267,7 +1293,7 @@ end
     local ActiveColor = Color3.fromRGB(0, 120, 255)
     local InactiveColor = Color3.fromRGB(60, 60, 65)
 
-    if not Library.Flags then Library.Flags = { Toggles = {}, Binds = {}, Colors = {} } end
+    if not Library.Flags then Library.Flags = {Toggles = {},Binds = {},Colors = {},Sliders = {} } end
     if not Library.Elements then Library.Elements = {} end 
     
     Library.Flags.Toggles[flag] = toggled
@@ -1370,13 +1396,16 @@ end
 
 function TabFuncs:Slider(text, min, max, default, callback, options)
     local flag = (options and options.Flag) or text
-    local value = default or min
+    
+    -- 1. TENTA PEGAR O VALOR SALVO (Igual ao Toggle)
+    local savedValue = Library.Flags and Library.Flags.Sliders and Library.Flags.Sliders[flag]
+    local value = (savedValue ~= nil) and savedValue or (default or min)
     
     local ActiveColor = Color3.fromRGB(0, 120, 255)
     local InactiveColor = Color3.fromRGB(60, 60, 65)
     local UIS = game:GetService("UserInputService")
 
-    -- CORREÇÃO DO ERRO: Inicializa cada tabela individualmente se não existir
+    -- Inicializa as tabelas se não existirem
     Library.Flags = Library.Flags or {}
     Library.Flags.Sliders = Library.Flags.Sliders or {}
     Library.Flags.Sliders[flag] = value
@@ -1387,7 +1416,8 @@ function TabFuncs:Slider(text, min, max, default, callback, options)
     SliFrame.Text = ""
     SliFrame.AutoButtonColor = false
     Instance.new("UICorner", SliFrame).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", SliFrame).Color = Theme.ItemStroke
+    local Stroke = Instance.new("UIStroke", SliFrame)
+    Stroke.Color = Theme.ItemStroke
 
     local Lbl = Instance.new("TextLabel", SliFrame)
     Lbl.Text = text
@@ -1417,7 +1447,8 @@ function TabFuncs:Slider(text, min, max, default, callback, options)
     Instance.new("UICorner", SliderBack)
 
     local SliderFill = Instance.new("Frame", SliderBack)
-    SliderFill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+    -- CALCULO DA POSIÇÃO INICIAL (Baseado no valor carregado)
+    SliderFill.Size = UDim2.new(math.clamp((value - min) / (max - min), 0, 1), 0, 1, 0)
     SliderFill.BackgroundColor3 = ActiveColor
     SliderFill.BorderSizePixel = 0
     Instance.new("UICorner", SliderFill)
@@ -1428,19 +1459,35 @@ function TabFuncs:Slider(text, min, max, default, callback, options)
     Ball.Position = UDim2.new(1, 0, 0.5, 0)
     Ball.BackgroundColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", Ball).CornerRadius = UDim.new(1, 0)
-    Instance.new("UIStroke", Ball).Color = ActiveColor
+    local BallStroke = Instance.new("UIStroke", Ball)
+    BallStroke.Color = ActiveColor
+
+    local function Set(val, quiet)
+        local clamped = math.clamp(val, min, max)
+        value = clamped
+        Library.Flags.Sliders[flag] = clamped
+        
+        ValLbl.Text = tostring(clamped)
+        local visualPos = (clamped - min) / (max - min)
+        Library:Tween(SliderFill, {Size = UDim2.new(visualPos, 0, 1, 0)}, 0.2)
+        
+        task.spawn(function() callback(clamped) end)
+        
+        -- Salva no arquivo apenas se for uma mudança manual (não silenciosa)
+        if not quiet and SaveSettings then SaveSettings() end
+    end
+
+    -- 2. REGISTRA NO ELEMENTS PARA O BOTÃO CARREGAR FUNCIONAR
+    Library.Elements[flag] = {
+        Set = Set,
+        Type = "Slider"
+    }
 
     local dragging = false
     local function move(input)
         local pos = math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
         local newValue = math.floor(((max - min) * pos) + min)
-        
-        value = newValue
-        Library.Flags.Sliders[flag] = newValue -- Agora a tabela existe!
-        
-        Library:Tween(SliderFill, {Size = UDim2.new(pos, 0, 1, 0)}, 0.1)
-        ValLbl.Text = tostring(newValue)
-        callback(newValue)
+        Set(newValue, true) -- Atualiza visualmente enquanto arrasta (quiet = true)
     end
 
     SliFrame.InputBegan:Connect(function(input)
@@ -1458,19 +1505,17 @@ function TabFuncs:Slider(text, min, max, default, callback, options)
 
     UIS.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
+            if dragging then
+                dragging = false
+                if SaveSettings then SaveSettings() end -- Salva no disco ao soltar o mouse
+            end
         end
     end)
 
-    return {
-        Set = function(self, val)
-            local clamped = math.clamp(val, min, max)
-            value = clamped
-            ValLbl.Text = tostring(clamped)
-            Library:Tween(SliderFill, {Size = UDim2.new((clamped - min)/(max - min), 0, 1, 0)}, 0.2)
-            callback(clamped)
-        end
-    }
+    -- Executa o estado inicial carregado
+    task.spawn(function() callback(value) end)
+
+    return { Set = Set }
 end
 
 --// NOVO: ADICIONANDO A FUNÇÃO DE INPUT PARA MOEDAS (CONFORME PEDIDO)
@@ -1986,85 +2031,117 @@ end)
 
     -- SALVAR
     SettingsTab:Button("Salvar Configuração", function()
-        if not writefile then return end
+    if not writefile then return end
+    
+    -- Organiza os dados para salvar
+    local SaveData = {
+    ThemeData = {
+        AccentHex = Theme.Accent:ToHex()
+    },
+    Keybinds = {
+        MenuToggle = Library.ToggleKey.Name 
+    },
+    Toggles = Library.Flags.Toggles,
+    Binds = Library.Flags.Binds,
+    Colors = Library.Flags.Colors,
+    Sliders = Library.Flags.Sliders -- ADICIONE ESTA LINHA
+}
+    
+    local success, json = pcall(function() return HttpService:JSONEncode(SaveData) end)
+    
+    if success then
+        -- 1. Salva o arquivo da configuração selecionada
+        local fullPath = ConfigFolder .. "/" .. ConfigName .. ".json"
+        writefile(fullPath, json)
         
-        local SaveData = {
-            ThemeData = {
-                AccentHex = Theme.Accent:ToHex()
-            },
-            Keybinds = {
-                MenuToggle = Library.ToggleKey.Name 
-            },
-            Toggles = Library.Flags.Toggles,
-            Binds = Library.Flags.Binds,
-            Colors = Library.Flags.Colors
-        }
+        -- 2. ATUALIZA O AUTO-LOAD: Salva o NOME desta config como a última usada
+        writefile(ConfigFolder .. "/LastConfig.txt", ConfigName)
         
-        local success, json = pcall(function() return HttpService:JSONEncode(SaveData) end)
-        if success then
-            writefile(ConfigFolder .. "/" .. ConfigName .. ".json", json)
-            NotificationService:Create("CriarConfig", "✅ Configuração '"..ConfigName.."' salva!")
-            task.wait(1.2)
+        -- Notificação visual
+        NotificationService:Create("CriarConfig", "✅ Configuração '"..ConfigName.."' salva e definida como padrão!")
+        
+        task.delay(1.2, function()
             NotificationService:Remove("CriarConfig")
+        end)
+        
+        -- Atualiza o Dropdown
+        if ConfigDrop then
             ConfigDrop:Refresh(GetConfigs())
         end
-    end)
+    else
+        warn("Erro ao codificar JSON: " .. tostring(json))
+    end
+end)
 
     -- CARREGAR
     SettingsTab:Button("Carregar Configuração", function()
-        if not readfile or not SelectedConfig then return end
+    if not readfile or not SelectedConfig then return end
+    
+    local path = ConfigFolder .. "/" .. SelectedConfig .. ".json"
+    
+    if isfile(path) then
+        local content = readfile(path)
+        local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
         
-        local path = ConfigFolder .. "/" .. SelectedConfig .. ".json"
-        if isfile(path) then
-            local content = readfile(path)
-            local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
-            
-            if success and decoded then
-                -- 1. Carregar Toggles
-                if decoded.Toggles then
-                    for flag, value in pairs(decoded.Toggles) do
-                        if Library.Elements[flag] and Library.Elements[flag].Set then
-                            Library.Elements[flag].Set(value)
-                        end
+        if success and decoded then
+            -- 1. Carregar Toggles
+            if decoded.Toggles then
+                for flag, value in pairs(decoded.Toggles) do
+                    if Library.Elements[flag] and Library.Elements[flag].Set then
+                        Library.Elements[flag].Set(value)
                     end
-                end
-
-                -- 2. Carregar Keybinds
-                if decoded.Binds then
-                    for flag, keyName in pairs(decoded.Binds) do
-                        if Library.Elements[flag] and Library.Elements[flag].SetKey then
-                            Library.Elements[flag].SetKey(keyName)
-                        end
-                    end
-                end
-
-                -- 3. Carregar Cores
-                if decoded.Colors then
-                    for flag, rgbTable in pairs(decoded.Colors) do
-                        if Library.Elements[flag] and Library.Elements[flag].SetColor then
-                            Library.Elements[flag].SetColor(rgbTable[1], rgbTable[2], rgbTable[3])
-                        end
-                    end
-                end
-
-                -- 4. Dados do Tema
-                if decoded.ThemeData and decoded.ThemeData.AccentHex then
-                    Theme.Accent = Color3.fromHex(decoded.ThemeData.AccentHex)
-                end
-
-                -- 5. Tecla do Menu
-                if decoded.Keybinds and decoded.Keybinds.MenuToggle then
-                    Library.ToggleKey = Enum.KeyCode[decoded.Keybinds.MenuToggle]
-                end
-                
-                if NotificationService then
-                    NotificationService:Create("ConfigLoad", "Configuração carregada com sucesso!")
-                    task.wait(1.2)
-                    NotificationService:Remove("ConfigLoad")
                 end
             end
+
+            -- 2. Carregar Keybinds
+            if decoded.Binds then
+                for flag, keyName in pairs(decoded.Binds) do
+                    if Library.Elements[flag] and Library.Elements[flag].SetKey then
+                        Library.Elements[flag].SetKey(keyName)
+                    end
+                end
+            end
+
+            -- 3. Carregar Cores
+            if decoded.Colors then
+                for flag, rgbTable in pairs(decoded.Colors) do
+                    if Library.Elements[flag] and Library.Elements[flag].SetColor then
+                        Library.Elements[flag].SetColor(rgbTable[1], rgbTable[2], rgbTable[3])
+                    end
+                end
+            end
+
+            -- 4. Dados do Tema
+            if decoded.ThemeData and decoded.ThemeData.AccentHex then
+                Theme.Accent = Color3.fromHex(decoded.ThemeData.AccentHex)
+            end
+
+            -- 5. Tecla do Menu
+            if decoded.Keybinds and decoded.Keybinds.MenuToggle then
+                Library.ToggleKey = Enum.KeyCode[decoded.Keybinds.MenuToggle]
+            end
+            
+            if decoded.Sliders then
+              for flag, value in pairs(decoded.Sliders) do
+                if Library.Elements[flag] and Library.Elements[flag].Set then
+                  Library.Elements[flag].Set(value)
+                 end
+             end
+         end
+            -- ATUALIZA O AUTO-LOAD: Se carregou manual, essa agora é a última configuração
+            writefile(ConfigFolder .. "/LastConfig.txt", SelectedConfig)
+
+            if NotificationService then
+                NotificationService:Create("ConfigLoad", "Configuração '"..SelectedConfig.."' aplicada!")
+                task.delay(1.2, function()
+                    NotificationService:Remove("ConfigLoad")
+                end)
+            end
+        else
+            warn("Erro ao carregar arquivo de config: " .. tostring(decoded))
         end
-    end)
+    end
+end)
 
     -- DELETAR
     SettingsTab:Button("Deletar Configuração", function()
