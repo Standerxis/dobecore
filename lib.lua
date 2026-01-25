@@ -940,6 +940,15 @@ local function AddExtras(parent, options, callback)
         local binding = false
         local blockKeyUntilRelease = nil
 
+        -- [CORREÇÃO CARREGAMENTO BIND]
+        local savedBind = Library.Flags.Binds[flag]
+        if savedBind then
+            local success, keyCode = pcall(function() return Enum.KeyCode[savedBind] end)
+            if success then
+                if type(options.Keybind) == "table" then options.Keybind.Value = keyCode else options.Keybind = keyCode end
+            end
+        end
+
         KeyBtn = Instance.new("TextButton", parent)
         KeyBtn.AutomaticSize = Enum.AutomaticSize.XY
         KeyBtn.Size = UDim2.fromOffset(0, 20)
@@ -1008,29 +1017,33 @@ local function AddExtras(parent, options, callback)
                         options.Keybind = selectedKey 
                     end
                     
+                    -- [CORREÇÃO SALVAMENTO BIND]
                     Library.Flags.Binds[flag] = selectedKey.Name
                     blockKeyUntilRelease = selectedKey
 
                     if Library.UpdateKeybindRender then
-                    Library:UpdateKeybindRender()
+                        Library:UpdateKeybindRender()
                     end
                     conInput:Disconnect()
                     resetVisual()
+                    if SaveSettings then SaveSettings() end -- Salva ao definir
 
                 elseif input.UserInputType == Enum.UserInputType.MouseButton1
                     or input.UserInputType == Enum.UserInputType.MouseButton2 then
                     
+                    local unk = Enum.KeyCode.Unknown
                     if type(options.Keybind) == "table" then
-                        options.Keybind.Value = Enum.KeyCode.Unknown
+                        options.Keybind.Value = unk
                     else
-                        options.Keybind = Enum.KeyCode.Unknown
+                        options.Keybind = unk
                     end
                     
-                    Library.Flags.Binds[flag] = Enum.KeyCode.Unknown.Name
-                    blockKeyUntilRelease = Enum.KeyCode.Unknown
+                    Library.Flags.Binds[flag] = unk.Name
+                    blockKeyUntilRelease = unk
 
                     conInput:Disconnect()
                     resetVisual()
+                    if SaveSettings then SaveSettings() end
                 end
             end)
         end)
@@ -1039,7 +1052,7 @@ local function AddExtras(parent, options, callback)
             if gp or binding then return end
 
             local checkKey = (type(options.Keybind) == "table" and options.Keybind.Value) or options.Keybind
-            if checkKey == Enum.KeyCode.Unknown then return end
+            if checkKey == Enum.KeyCode.Unknown or checkKey == nil then return end
             if input.KeyCode ~= checkKey then return end
 
             if blockKeyUntilRelease == checkKey then
@@ -1058,8 +1071,16 @@ local function AddExtras(parent, options, callback)
         end)
     end
 
-    -- 2. COLOR PICKER (inalterado)
+    -- 2. COLOR PICKER
     if options.Color then
+        -- [CORREÇÃO CARREGAMENTO COR]
+        local savedColor = Library.Flags.Colors[flag]
+        local startColor = options.Color
+
+        if savedColor and type(savedColor) == "table" then
+            startColor = Color3.new(savedColor[1], savedColor[2], savedColor[3])
+        end
+
         local ColorInd = Instance.new("TextButton", parent)
         ColorInd.Size = UDim2.fromOffset(20, 20)
         ColorInd.AnchorPoint = Vector2.new(1, 0.5)
@@ -1073,22 +1094,29 @@ local function AddExtras(parent, options, callback)
         updateColorPos()
         if KeyBtn then KeyBtn:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateColorPos) end
 
-        ColorInd.BackgroundColor3 = options.Color
+        ColorInd.BackgroundColor3 = startColor
         ColorInd.Text = ""
         ColorInd.ZIndex = parent.ZIndex + 1
         Instance.new("UICorner", ColorInd).CornerRadius = UDim.new(0, 4)
-        Instance.new("UIStroke", ColorInd).Color = Theme.ItemStroke
+        local Stroke = Instance.new("UIStroke", ColorInd)
+        Stroke.Color = Theme.ItemStroke
 
         ColorInd.MouseButton1Click:Connect(function()
             Library:OpenColorPicker(ColorInd.BackgroundColor3, function(newC)
                 ColorInd.BackgroundColor3 = newC
+                -- [CORREÇÃO SALVAMENTO COR]
                 Library.Flags.Colors[flag] = {newC.R, newC.G, newC.B}
                 if callback then callback("Color", newC) end
+                if SaveSettings then SaveSettings() end -- Salva ao mudar a cor
             end)
+        end)
+
+        -- Aplica a cor carregada inicialmente ao script
+        task.spawn(function()
+            if callback then callback("Color", startColor) end
         end)
     end 
 end
-
 
     local first = true
     function WindowTable:Tab(name, iconid)
@@ -1249,7 +1277,10 @@ end
 
       function TabFuncs:Toggle(text, default, callback, options)
     local flag = (options and options.Flag) or text
-    local toggled = default or false
+    
+    -- CORREÇÃO: Verifica se já existe valor carregado no sistema de flags
+    local savedValue = Library.Flags and Library.Flags.Toggles and Library.Flags.Toggles[flag]
+    local toggled = (savedValue ~= nil) and savedValue or (default or false)
     
     local ActiveColor = Color3.fromRGB(0, 120, 255)
     local InactiveColor = Color3.fromRGB(60, 60, 65)
@@ -1303,14 +1334,17 @@ end
     Instance.new("UICorner", Ball).CornerRadius = UDim.new(1, 0)
 
     local function Swap(quiet)
-        if not quiet then toggled = not toggled end
+        if not quiet then 
+            toggled = not toggled 
+        end
+        
         Library.Flags.Toggles[flag] = toggled
         
         -- Atualização Visual
         Library:Tween(Switch, {BackgroundColor3 = toggled and ActiveColor or InactiveColor}, 0.2)
         Library:Tween(Ball, {Position = toggled and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)}, 0.2)
         
-        -- Executa o callback com pcall para não travar a UI se o seu script de hack der erro
+        -- Executa o callback
         task.spawn(function()
             local success, err = pcall(function()
                 callback(toggled)
@@ -1319,6 +1353,9 @@ end
                 warn("Erro no callback do Toggle ["..flag.."]: "..tostring(err))
             end
         end)
+
+        -- Salva as configs sempre que mudar manualmente
+        if not quiet and SaveSettings then SaveSettings() end
     end
 
     TogFrame.MouseButton1Click:Connect(function() Swap(false) end)
@@ -1330,15 +1367,15 @@ end
     
     UpdateSwitchPosition()
 
-    if default then 
-        task.spawn(function() pcall(function() callback(true) end) end)
-    end
+    -- CORREÇÃO: Roda o estado inicial carregado
+    task.spawn(function() 
+        pcall(function() callback(toggled) end) 
+    end)
 
-    -- FUNÇÃO DE CARREGAR (IMPORTANTE: Removido o 'self')
     local function SetState(bool)
         if toggled ~= bool then 
             toggled = bool 
-            Swap(true) -- quiet = true para apenas atualizar visual e rodar callback
+            Swap(true)
         end
     end
 
