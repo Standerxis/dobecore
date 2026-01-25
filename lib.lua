@@ -1971,38 +1971,31 @@ end
 function Library:CreateSettings(Window)
     local SettingsTab = Window:Tab("Configurações", "rbxassetid://6031280882")
     
-    --// 0. SEÇÃO DE TAGS (ADICIONADA)
-    --// 0. SEÇÃO DE TAGS (ADICIONADA)
-SettingsTab:Section("Tags CUSTOM")
+    --// 0. SEÇÃO DE TAGS
+    SettingsTab:Section("Tags CUSTOM")
 
-SettingsTab:Toggle("Esconder Todas as Tags", false, function(state)
-    -- Adicionamos _G. para conversar com o arquivo tag.lua
-    if _G.toggleAllTags then
-        _G.toggleAllTags(not state) 
-    end
-end)
+    SettingsTab:Toggle("Esconder Todas as Tags", false, function(state)
+        if _G.toggleAllTags then
+            _G.toggleAllTags(not state) 
+        end
+    end)
 
-SettingsTab:Toggle("Esconder Minha Tag", false, function(state)
-    -- Adicionamos _G. para conversar com o arquivo tag.lua
-    if _G.toggleMyTag then
-        _G.toggleMyTag(not state)
-    end
-end)
+    SettingsTab:Toggle("Esconder Minha Tag", false, function(state)
+        if _G.toggleMyTag then
+            _G.toggleMyTag(not state)
+        end
+    end)
 
     --// 1. PREPARAÇÃO
     local ConfigFolder = "DobeiOS_Configs"
     local ConfigName = "Default"
     local SelectedConfig = nil
     
-    -- Define valores padrão se não existirem
     if not Library.ToggleKey then Library.ToggleKey = Enum.KeyCode.RightControl end
 
-    -- Garante que a pasta existe
     if makefolder and isfolder and not isfolder(ConfigFolder) then 
         makefolder(ConfigFolder) 
     end
-
-    
 
     SettingsTab:Section("GERENCIAR CONFIGS")
 
@@ -2031,117 +2024,105 @@ end)
 
     -- SALVAR
     SettingsTab:Button("Salvar Configuração", function()
-    if not writefile then return end
-    
-    -- Organiza os dados para salvar
-    local SaveData = {
-    ThemeData = {
-        AccentHex = Theme.Accent:ToHex()
-    },
-    Keybinds = {
-        MenuToggle = Library.ToggleKey.Name 
-    },
-    Toggles = Library.Flags.Toggles,
-    Binds = Library.Flags.Binds,
-    Colors = Library.Flags.Colors,
-    Sliders = Library.Flags.Sliders -- ADICIONE ESTA LINHA
-}
-    
-    local success, json = pcall(function() return HttpService:JSONEncode(SaveData) end)
-    
-    if success then
-        -- 1. Salva o arquivo da configuração selecionada
-        local fullPath = ConfigFolder .. "/" .. ConfigName .. ".json"
-        writefile(fullPath, json)
+        if not writefile then return end
         
-        -- 2. ATUALIZA O AUTO-LOAD: Salva o NOME desta config como a última usada
-        writefile(ConfigFolder .. "/LastConfig.txt", ConfigName)
+        local SaveData = {
+            ThemeData = {
+                AccentHex = Theme.Accent:ToHex()
+            },
+            Keybinds = {
+                MenuToggle = Library.ToggleKey.Name 
+            },
+            Toggles = Library.Flags.Toggles,
+            Binds = Library.Flags.Binds,
+            Colors = Library.Flags.Colors,
+            Sliders = Library.Flags.Sliders
+        }
         
-        -- Notificação visual
-        NotificationService:Create("CriarConfig", "✅ Configuração '"..ConfigName.."' salva e definida como padrão!")
+        local success, json = pcall(function() return HttpService:JSONEncode(SaveData) end)
         
-        task.delay(1.2, function()
-            NotificationService:Remove("CriarConfig")
-        end)
-        
-        -- Atualiza o Dropdown
-        if ConfigDrop then
-            ConfigDrop:Refresh(GetConfigs())
+        if success then
+            local fullPath = ConfigFolder .. "/" .. ConfigName .. ".json"
+            writefile(fullPath, json)
+            writefile(ConfigFolder .. "/LastConfig.txt", ConfigName)
+            
+            NotificationService:Create("CriarConfig", "✅ Configuração '"..ConfigName.."' salva!")
+            task.delay(1.2, function()
+                NotificationService:Remove("CriarConfig")
+            end)
+            
+            if ConfigDrop then
+                ConfigDrop:Refresh(GetConfigs())
+            end
+        else
+            warn("Erro ao codificar JSON: " .. tostring(json))
         end
-    else
-        warn("Erro ao codificar JSON: " .. tostring(json))
-    end
-end)
+    end)
 
     -- CARREGAR
     SettingsTab:Button("Carregar Configuração", function()
-    if not readfile or not SelectedConfig then return end
-    
-    local path = ConfigFolder .. "/" .. SelectedConfig .. ".json"
-    
-    if isfile(path) then
-        local content = readfile(path)
-        local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+        if not readfile or not SelectedConfig then return end
         
-        if success and decoded then
-            -- 1. Carregar Toggles
-            if decoded.Toggles then
-                for flag, value in pairs(decoded.Toggles) do
-                    if Library.Elements[flag] and Library.Elements[flag].Set then
-                        Library.Elements[flag].Set(value)
-                    end
-                end
-            end
-
-            -- 2. Carregar Keybinds
-            if decoded.Binds then
-                for flag, keyName in pairs(decoded.Binds) do
-                    if Library.Elements[flag] and Library.Elements[flag].SetKey then
-                        Library.Elements[flag].SetKey(keyName)
-                    end
-                end
-            end
-
-            -- 3. Carregar Cores
-            if decoded.Colors then
-                for flag, rgbTable in pairs(decoded.Colors) do
-                    if Library.Elements[flag] and Library.Elements[flag].SetColor then
-                        Library.Elements[flag].SetColor(rgbTable[1], rgbTable[2], rgbTable[3])
-                    end
-                end
-            end
-
-            -- 4. Dados do Tema
-            if decoded.ThemeData and decoded.ThemeData.AccentHex then
-                Theme.Accent = Color3.fromHex(decoded.ThemeData.AccentHex)
-            end
-
-            -- 5. Tecla do Menu
-            if decoded.Keybinds and decoded.Keybinds.MenuToggle then
-                Library.ToggleKey = Enum.KeyCode[decoded.Keybinds.MenuToggle]
-            end
+        local path = ConfigFolder .. "/" .. SelectedConfig .. ".json"
+        
+        if isfile(path) then
+            local content = readfile(path)
+            local success, decoded = pcall(function() return HttpService:JSONDecode(content) end)
             
-            if decoded.Sliders then
-              for flag, value in pairs(decoded.Sliders) do
-                if Library.Elements[flag] and Library.Elements[flag].Set then
-                  Library.Elements[flag].Set(value)
-                 end
-             end
-         end
-            -- ATUALIZA O AUTO-LOAD: Se carregou manual, essa agora é a última configuração
-            writefile(ConfigFolder .. "/LastConfig.txt", SelectedConfig)
+            if success and decoded then
+                if decoded.Toggles then
+                    for flag, value in pairs(decoded.Toggles) do
+                        if Library.Elements[flag] and Library.Elements[flag].Set then
+                            Library.Elements[flag].Set(value)
+                        end
+                    end
+                end
 
-            if NotificationService then
-                NotificationService:Create("ConfigLoad", "Configuração '"..SelectedConfig.."' aplicada!")
-                task.delay(1.2, function()
-                    NotificationService:Remove("ConfigLoad")
-                end)
+                if decoded.Binds then
+                    for flag, keyName in pairs(decoded.Binds) do
+                        if Library.Elements[flag] and Library.Elements[flag].SetKey then
+                            Library.Elements[flag].SetKey(keyName)
+                        end
+                    end
+                end
+
+                if decoded.Colors then
+                    for flag, rgbTable in pairs(decoded.Colors) do
+                        if Library.Elements[flag] and Library.Elements[flag].SetColor then
+                            Library.Elements[flag].SetColor(rgbTable[1], rgbTable[2], rgbTable[3])
+                        end
+                    end
+                end
+
+                if decoded.ThemeData and decoded.ThemeData.AccentHex then
+                    Theme.Accent = Color3.fromHex(decoded.ThemeData.AccentHex)
+                end
+
+                if decoded.Keybinds and decoded.Keybinds.MenuToggle then
+                    Library.ToggleKey = Enum.KeyCode[decoded.Keybinds.MenuToggle]
+                end
+                
+                if decoded.Sliders then
+                    for flag, value in pairs(decoded.Sliders) do
+                        if Library.Elements[flag] and Library.Elements[flag].Set then
+                            Library.Elements[flag].Set(value)
+                        end
+                    end
+                end
+
+                writefile(ConfigFolder .. "/LastConfig.txt", SelectedConfig)
+
+                if NotificationService then
+                    NotificationService:Create("ConfigLoad", "Configuração '"..SelectedConfig.."' aplicada!")
+                    task.delay(1.2, function()
+                        NotificationService:Remove("ConfigLoad")
+                    end)
+                end
+            else
+                warn("Erro ao carregar arquivo de config: " .. tostring(decoded))
             end
-        else
-            warn("Erro ao carregar arquivo de config: " .. tostring(decoded))
         end
-    end
-end)
+    end)
 
     -- DELETAR
     SettingsTab:Button("Deletar Configuração", function()
@@ -2153,14 +2134,100 @@ end)
             SelectedConfig = nil
             if NotificationService then
                 NotificationService:Create("DeleteConfig", "Config deletada.")
-                task.wait(1.2)
-                NotificationService:Remove("DeleteConfig")
+                task.delay(1.2, function()
+                    NotificationService:Remove("DeleteConfig")
+                end)
             end
         end
     end)
+
+    --// 2. SEÇÃO DE IMPORTS & EXPORTS (AGORA DENTRO DA FUNÇÃO)
+    SettingsTab:Section("IMPORTS & EXPORTS")
+
+    local ConfigInput = "" 
+
+    SettingsTab:Input("Config Code", "Cole o JSON aqui...", function(txt)
+        ConfigInput = txt
+    end)
+
+    SettingsTab:Button("Importar Configuração", function()
+        if ConfigInput == "" then 
+            return NotificationService:Create("Erro", "Cole um código JSON válido!") 
+        end
+
+        local success, decoded = pcall(function() 
+            return HttpService:JSONDecode(ConfigInput) 
+        end)
+
+        if success and decoded then
+            -- Toggles
+            if decoded.Toggles then
+                for flag, value in pairs(decoded.Toggles) do
+                    if Library.Elements[flag] and Library.Elements[flag].Set then
+                        Library.Elements[flag].Set(value)
+                    end
+                end
+            end
+            -- Binds
+            if decoded.Binds then
+                for flag, keyName in pairs(decoded.Binds) do
+                    if Library.Elements[flag] and Library.Elements[flag].SetKey then
+                        Library.Elements[flag].SetKey(keyName)
+                    end
+                end
+            end
+            -- Sliders
+            if decoded.Sliders then
+                for flag, value in pairs(decoded.Sliders) do
+                    if Library.Elements[flag] and Library.Elements[flag].Set then
+                        Library.Elements[flag].Set(value)
+                    end
+                end
+            end
+            -- Cores
+            if decoded.Colors then
+                for flag, rgbTable in pairs(decoded.Colors) do
+                    if Library.Elements[flag] and Library.Elements[flag].SetColor then
+                        Library.Elements[flag].SetColor(rgbTable[1], rgbTable[2], rgbTable[3])
+                    end
+                end
+            end
+            -- Tema
+            if decoded.ThemeData and decoded.ThemeData.AccentHex then
+                Theme.Accent = Color3.fromHex(decoded.ThemeData.AccentHex)
+            end
+
+            NotificationService:Create("Import", "✅ Configuração importada!")
+            task.delay(1.2, function() NotificationService:Remove("Import") end)
+        else
+            NotificationService:Create("Erro", "❌ Código inválido.")
+        end
+    end)
+
+    SettingsTab:Button("Exportar para Clipboard", function()
+        local ExportData = {
+            ThemeData = { AccentHex = Theme.Accent:ToHex() },
+            Keybinds = { MenuToggle = Library.ToggleKey.Name },
+            Toggles = Library.Flags.Toggles,
+            Binds = Library.Flags.Binds,
+            Colors = Library.Flags.Colors,
+            Sliders = Library.Flags.Sliders
+        }
+
+        local success, json = pcall(function() return HttpService:JSONEncode(ExportData) end)
+        
+        if success then
+            if setclipboard then
+                setclipboard(json)
+                NotificationService:Create("Export", "📋 JSON copiado!")
+            else
+                print(json)
+                NotificationService:Create("Export", "JSON no F9.")
+            end
+            task.delay(1.2, function() NotificationService:Remove("Export") end)
+        end
+    end)
 end
-
-
 return Library
 
 --[[
