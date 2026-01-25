@@ -431,7 +431,7 @@ PescaTab:Button("Vender Peixes", function()
 end)
 
 
-PescaTab:Section("Autos Mobile Brutal V2")
+PescaTab:Section("Autos Mobile Brutal")
 
 local S = {
     Players = game:GetService("Players"),
@@ -442,9 +442,10 @@ local S = {
 }
 local Player = S.Players.LocalPlayer
 
+-- Notificação com limpeza automática (0.8s) conforme solicitado
 local function Msg(title, text)
     if NotificationService then
-        local id = "Fishing_" .. math.random(1, 9999)
+        local id = "FishDebug_" .. math.random(1, 9999)
         NotificationService:Create(id, title .. " | " .. text)
         task.delay(0.8, function()
             NotificationService:Remove(id)
@@ -459,28 +460,21 @@ local Bot = {
     LastDelta = nil,
     LastClick = 0,
     LastHookClick = 0,
-    HookCooldown = 0.5, -- Reduzi um pouco para ser mais responsivo
+    HookCooldown = 0.6,
     Conn = nil
 }
 
 -- =========================
--- CLIQUE MOBILE BRUTO (SISTEMA DE TOQUE MÚLTIPLO)
+-- CLIQUE MOBILE REAL (TOUCH SIMULATION)
 -- =========================
 local function Click(x, y)
     local inset = S.GuiService:GetGuiInset()
     local finalX = x + inset.X
     local finalY = y + inset.Y
     
-    -- Simulação de toque mais agressiva para Mobile
-    -- SendTouchEvent(fingerId, state, x, y)
-    -- States: 0 = Down, 1 = Move, 2 = Up
+    -- Simula o toque real (TouchStart -> Wait -> TouchEnd)
     S.VIM:SendTouchEvent(0, 0, finalX, finalY) 
-    task.wait(0.01)
-    S.VIM:SendTouchEvent(0, 2, finalX, finalY)
-    
-    -- Clique extra de segurança (Double Tap rápido)
-    task.wait(0.01)
-    S.VIM:SendTouchEvent(0, 0, finalX, finalY)
+    task.wait(0.02)
     S.VIM:SendTouchEvent(0, 2, finalX, finalY)
 end
 
@@ -489,14 +483,19 @@ local function GetCenter(inst)
     return Vector2.new(inst.AbsolutePosition.X + inst.AbsoluteSize.X / 2, inst.AbsolutePosition.Y + inst.AbsoluteSize.Y / 2)
 end
 
-local function FindHook()
-    -- Procura especificamente pelo HookMeter ou qualquer coisa que indique a fisgada
-    for _, v in ipairs(Player.PlayerGui:GetDescendants()) do
-        if v:IsA("GuiObject") and v.Visible and v.AbsoluteSize.X > 0 then
-            local n = v.Name:lower()
-            if n:find("hook") or n:find("meter") then
-                -- Tenta clicar no círculo central ou no próprio objeto
-                return v:FindFirstChild("MiddleCircle", true) or v:FindFirstChild("Click", true) or v
+-- =========================
+-- BUSCA BRUTA (GETDESCENDANTS)
+-- =========================
+local function FindHookTarget()
+    local gui = Player.PlayerGui
+    -- Primeiro tenta achar o container do Hook
+    for _, v in ipairs(gui:GetDescendants()) do
+        if v.Name == "HookMeter" or v.Name:find("Meter") then
+            -- Achou o container, agora varre tudo dentro dele (inclusive os nomes em japonês)
+            for _, sub in ipairs(v:GetDescendants()) do
+                if sub.Name == "MiddleCircle" or sub.Name:find("Circle") then
+                    return sub
+                end
             end
         end
     end
@@ -529,6 +528,9 @@ local function EquipRod()
     end
 end
 
+-- =========================
+-- LÓGICA DE EXECUÇÃO
+-- =========================
 local function DoAction(action)
     local r = GetRemote()
     if not r then return end
@@ -539,7 +541,7 @@ local function DoAction(action)
         local npc = workspace:FindFirstChild("NPCS") and workspace.NPCS:FindFirstChild("Fisherman")
         
         if root and npc then
-            Msg("SISTEMA", "Vendendo...")
+            Msg("SISTEMA", "Iniciando Venda...")
             local oldPos = root.CFrame
             Bot.Selling = true
             char:PivotTo(npc.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3))
@@ -570,58 +572,66 @@ local function StartBot()
     Bot.Selling = false
     Bot.MinigameActive = false
     
-    Msg("STATUS", "Iniciado!")
+    Msg("STATUS", "Bot Mobile Ativado!")
     DoAction("Throw")
+
+    task.spawn(function()
+        while Bot.Enabled do
+            if not Bot.Selling then
+                local cur, max = GetFishStats()
+                if cur and max and cur >= max then
+                    DoAction("Sell")
+                end
+            end
+            task.wait(2)
+        end
+    end)
 
     Bot.Conn = S.RunService.Heartbeat:Connect(function()
         if not Bot.Enabled or Bot.Selling then return end
 
-        local gui = Player.PlayerGui
-        
-        -- FISGADA (HOOK) - Refatorado para ser mais agressivo
-        local hook = FindHook()
-        if hook and (os.clock() - Bot.LastHookClick >= Bot.HookCooldown) then
-            local center = GetCenter(hook)
-            -- Verifica se a posição é válida (não é 0,0)
-            if center.X > 0 then
-                Bot.LastHookClick = os.clock()
-                Msg("CLIQUE", "Tentando fisgar!")
-                Click(center.X, center.Y)
-            end
+        -- FISGADA (HOOK) COM BUSCA RECURSIVA
+        local target = FindHookTarget()
+        if target and (os.clock() - Bot.LastHookClick >= Bot.HookCooldown) then
+            Bot.LastHookClick = os.clock()
+            local c = GetCenter(target)
+            Msg("DETECTOR", "Fisgada achada!")
+            Click(c.X, c.Y)
         end
 
-        -- MINIGAME DE PUXAR
-        local catch = gui:FindFirstChild("CatchIndicator", true)
+        -- MINIGAME DE PUXAR (CATCH)
+        local catch = Player.PlayerGui:FindFirstChild("CatchIndicator", true)
         local img = catch and catch:FindFirstChild("ImageButton", true)
         
         if img and img.Visible then
-            local moving, target
+            local moving, targetFrame
             for _, v in ipairs(img:GetDescendants()) do
-                if v:IsA("Frame") and v.Visible then
+                if v:IsA("Frame") then
                     if v.BackgroundColor3 == Color3.fromRGB(242, 84, 84) then moving = v
-                    elseif v.BackgroundColor3 == Color3.fromRGB(67, 200, 120) then target = v end
+                    elseif v.BackgroundColor3 == Color3.fromRGB(67, 200, 120) then targetFrame = v end
                 end
             end
 
-            if moving and target then
+            if moving and targetFrame then
                 Bot.MinigameActive = true
                 local mX = GetCenter(moving).X
-                local tX = GetCenter(target).X
+                local tX = GetCenter(targetFrame).X
                 local delta = mX - tX
 
-                if Bot.LastDelta and math.sign(Bot.LastDelta) ~= math.sign(delta) and tick() - Bot.LastClick > 0.08 then
+                if Bot.LastDelta and math.sign(Bot.LastDelta) ~= math.sign(delta) and tick() - Bot.LastClick > 0.1 then
                     Bot.LastClick = tick()
-                    Click(tX, GetCenter(target).Y)
+                    Click(tX, GetCenter(targetFrame).Y)
                 end
                 Bot.LastDelta = delta
             end
         elseif Bot.MinigameActive then
             Bot.MinigameActive = false
             Bot.LastDelta = nil
-            Msg("INFO", "Sucesso!")
+            Msg("INFO", "Peixe capturado!")
             task.wait(1.5)
             local r = GetRemote()
             if r then r:FireServer("FishDecision", true) end
+            
             task.wait(1.2)
             if Bot.Enabled and not Bot.Selling then 
                 DoAction("Throw") 
@@ -630,12 +640,15 @@ local function StartBot()
     end)
 end
 
+-- =========================
+-- UI TOGGLE
+-- =========================
 PescaTab:Toggle("Autofish Mobile Full", false, function(state)
     Bot.Enabled = state
     if state then
         StartBot()
     else
-        Msg("STATUS", "Desativado")
+        Msg("STATUS", "Bot Desligado")
         if Bot.Conn then Bot.Conn:Disconnect(); Bot.Conn = nil end
     end
 end, {
