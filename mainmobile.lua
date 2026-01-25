@@ -1595,8 +1595,6 @@ local ConfigExploit = {
 }
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
 
 local LP = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -1604,9 +1602,9 @@ local Camera = Workspace.CurrentCamera
 local Char, Hum, HRP
 
 local function SetupChar()
-    Char = LP.Character or LP.CharacterAdded:Wait()
-    Hum = Char:WaitForChild("Humanoid")
-    HRP = Char:WaitForChild("HumanoidRootPart")
+	Char = LP.Character or LP.CharacterAdded:Wait()
+	Hum = Char:WaitForChild("Humanoid")
+	HRP = Char:WaitForChild("HumanoidRootPart")
 end
 
 SetupChar()
@@ -1616,7 +1614,7 @@ LP.CharacterAdded:Connect(SetupChar)
 -- CONFIG
 -- =========================
 local SPEED = 60
--- No mobile, a subida/descida é controlada pela inclinação da câmera
+local VERTICAL_SPEED = 45
 
 -- =========================
 -- STATE
@@ -1627,60 +1625,70 @@ local flying = false
 -- BODY MOVERS
 -- =========================
 local BV = Instance.new("BodyVelocity")
-BV.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+BV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
 
 local BG = Instance.new("BodyGyro")
-BG.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+BG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
 BG.P = 9000
 
 -- =========================
--- MOVIMENTO (MOBILE ONLY)
+-- MOVIMENTO
 -- =========================
 RunService.RenderStepped:Connect(function()
-    if not flying or not HRP or not Hum then return end
+	if not flying or not HRP or not Hum then return end
 
-    local cam = Camera.CFrame
-    -- Hum.MoveDirection é o segredo para o analógico do mobile funcionar
-    local moveDir = Hum.MoveDirection 
+	local cam = Camera.CFrame
+	local move = Vector3.zero
 
-    if moveDir.Magnitude > 0 then
-        -- Converte o movimento do analógico para a direção que a câmera aponta
-        -- Isso permite subir ao olhar para cima e descer ao olhar para baixo
-        BV.Velocity = cam:VectorToWorldSpace(cam:PointToObjectSpace(cam.Position + moveDir)) * SPEED
-    else
-        -- Para o personagem no ar quando soltar o analógico
-        BV.Velocity = Vector3.new(0, 0, 0)
-    end
+	local look = cam.LookVector
+	local right = cam.RightVector
 
-    -- Mantém o corpo sempre virado para onde a câmera aponta
-    BG.CFrame = cam
+	if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+		move += look
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+		move -= look
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+		move -= right
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+		move += right
+	end
+
+	if move.Magnitude > 0 then
+		move = move.Unit
+	end
+
+	BV.Velocity = Vector3.new(
+		move.X * SPEED,
+		move.Y * VERTICAL_SPEED,
+		move.Z * SPEED
+	)
+
+	BG.CFrame = cam
 end)
+
 
 -- =========================
 -- CONTROLES
 -- =========================
 local function startFly()
-    if flying or not HRP then return end
-    SetupChar()
-    flying = true
-    BV.Parent = HRP
-    BG.Parent = HRP
-    Hum.PlatformStand = true
+	if flying or not HRP then return end
+	flying = true
+	BV.Parent = HRP
+	BG.Parent = HRP
+	Hum.PlatformStand = true
 end
 
 local function stopFly()
-    if not flying then return end
-    flying = false
-    BV.Parent = nil
-    BG.Parent = nil
-    if Hum then
-        Hum.PlatformStand = false
-    end
-    BV.Velocity = Vector3.zero
+	if not flying then return end
+	flying = false
+	BV.Parent = nil
+	BG.Parent = nil
+	Hum.PlatformStand = false
+	BV.Velocity = Vector3.zero
 end
-
--- Exemplo de ativação na sua Toggle:
--- FlyTab:Toggle("Fly Mobile", false, function(s) if s then startFly() else stopFly() end end)
 
 -- =========================
 -- INTERFACE (MERCURYLIB)
@@ -1819,36 +1827,26 @@ local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
 -- Variável de controle
 _G.ClickTPEnabled = false
 
-ExploitTab:Toggle("Click Teleport Mobile", false, function(state)
+ExploitTab:Toggle("Click Teleport", false, function(state)
     _G.ClickTPEnabled = state
 end, {
+    -- Você pode definir uma tecla padrão aqui se desejar
     Keybind = { Value = ConfigExploit.ClickTPKey } 
 })
 
--- Lógica de execução do Teleporte (Mobile Only)
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+-- Lógica de execução do Teleporte
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- Verifica o Toggle e se o input foi um toque na tela
-    if _G.ClickTPEnabled and input.UserInputType == Enum.UserInputType.Touch then
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character
-        local camera = workspace.CurrentCamera
-        
+    -- Verifica se o Toggle está ativo e se o clique foi o botão esquerdo
+    if _G.ClickTPEnabled and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local character = game:GetService("Players").LocalPlayer.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
-            -- Projeta um raio do ponto tocado na tela para o mundo 3D
-            local unitRay = camera:ViewportPointToRay(input.Position.X, input.Position.Y)
-            local raycastParams = RaycastParams.new()
-            raycastParams.FilterDescendantsInstances = {character} -- Evita clicar em si mesmo
-            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+            -- Define o destino (onde o mouse está apontando no mundo 3D)
+            -- Adicionamos +3 no eixo Y para o player não nascer "dentro" do chão
+            local targetPos = Mouse.Hit.Position + Vector3.new(0, 3, 0)
             
-            local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, raycastParams)
-            
-            if raycastResult then
-                -- Teleporta para onde o raio bateu + 3 studs de altura
-                local targetPos = raycastResult.Position + Vector3.new(0, 3, 0)
-                character:PivotTo(CFrame.new(targetPos))
-            end
+            character:PivotTo(CFrame.new(targetPos))
         end
     end
 end)
