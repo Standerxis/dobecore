@@ -15,8 +15,8 @@ local segurandoBotao = false
 
 local function getClosestPlayer()
     local target = nil
-    -- Aqui ele usa o FOV Universal
-    local shortestDistance = _G.UniversalFOV or 100 
+    -- Alinhado com _G.FOVRadius da UI
+    local shortestDistance = _G.FOVRadius or 100 
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -30,7 +30,6 @@ local function getClosestPlayer()
                     local mouseLocation = UIS:GetMouseLocation()
                     local distance = (Vector2.new(pos.X, pos.Y) - mouseLocation).Magnitude
                     
-                    -- Verifica se está dentro do FOV unificado
                     if distance < shortestDistance then
                         target = head
                         shortestDistance = distance
@@ -42,7 +41,7 @@ local function getClosestPlayer()
     return target
 end
 
--- Input Listeners (AimbotKey continua sendo específico do Aimbot)
+-- Gerenciamento de Input
 UIS.InputBegan:Connect(function(input)
     if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
         segurandoBotao = true
@@ -55,18 +54,20 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
+-- Loop Principal
 RS.RenderStepped:Connect(function()
-    -- Sincronização com o Painel Profissional (Variáveis Universais)
-    FOVCircle.Visible = _G.ShowUniversalFOV or false
-    FOVCircle.Radius = _G.UniversalFOV or 100
-    FOVCircle.Color = _G.UniversalFOVColor or Color3.fromRGB(255, 255, 255)
+    -- Sincronização com as Variáveis da sua UI
+    FOVCircle.Visible = _G.ShowFOV or false
+    FOVCircle.Radius = _G.FOVRadius or 100
+    FOVCircle.Color = _G.FOVColor or Color3.fromRGB(255, 255, 255)
     FOVCircle.Position = UIS:GetMouseLocation()
 
-    -- Lógica de disparo específica do Aimbot
+    -- Lógica de disparo
     if _G.AimbotEnabled and segurandoBotao then
         local targetPart = getClosestPlayer()
         if targetPart then
             local mouseLocation = UIS:GetMouseLocation()
+            -- Predição e Suavidade vindas da UI
             local prediction = targetPart.Position + (targetPart.Velocity * (_G.PredictionAmount or 0.165))
             local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
             
