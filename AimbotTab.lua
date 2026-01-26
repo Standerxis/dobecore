@@ -4,128 +4,94 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Configurações Avançadas
-local Config = {
-    Enabled = true,
-    TeamCheck = true,
-    FOV = 150,
-    Smoothness = 0.12, -- Quanto menor, mais suave. 1 = Instantâneo.
-    PredictionAmount = 0.165, -- Ajuste para compensar o lag/velocidade (0.1 a 0.2 é o ideal)
-    TargetPart = "Head",
-    Key = Enum.UserInputType.MouseButton2
-}
+-- Configurações Padrão (Caso não definidas via UI)
+_G.AimbotEnabled = _G.AimbotEnabled or true
+_G.AimbotFOV = _G.AimbotFOV or 150
+_G.AimbotSmoothness = _G.AimbotSmoothness or 0.15 -- Menor = Mais suave
+_G.ShowFOV = _G.ShowFOV or true
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
-FOVCircle.NumSides = 64
+FOVCircle.NumSides = 100
 FOVCircle.Transparency = 1
 FOVCircle.Filled = false
-FOVCircle.Color = Color3.fromRGB(0, 255, 150)
 
-local currentTarget = nil
-local isAiming = false
+local segurandoBotao = false
 
--- Função de Visibilidade Melhorada
-local function isVisible(part, character)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-    -- Ignora você e o personagem que você está tentando acertar
-    rayParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-    rayParams.IgnoreWater = true
+-- Função para checar se há obstáculos entre você e o alvo
+local function isVisible(targetPart)
+    local character = LocalPlayer.Character
+    if not character then return false end
     
-    local origin = Camera.CFrame.Position
-    local direction = (part.Position - origin).Unit * 500
-    local result = workspace:Raycast(origin, direction, rayParams)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {character, targetPart.Parent} -- Ignora você e o alvo
     
-    return result == nil
+    local result = workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit * 500, params)
+    
+    return result == nil -- Se for nil, não bateu em nada (visível)
 end
 
--- Busca o alvo com lógica de proximidade e FOV
-local function getBestTarget()
+local function getClosestPlayer()
+    local target = nil
+    local shortestDistance = _G.AimbotFOV
     local mousePos = UIS:GetMouseLocation()
-    local closestDist = Config.FOV
-    local selected = nil
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(Config.TargetPart) then
-            -- Team Check
-            if Config.TeamCheck and player.Team == LocalPlayer.Team then continue end
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            local hum = player.Character:FindFirstChild("Humanoid")
             
-            local char = player.Character
-            local part = char[Config.TargetPart]
-            local hum = char:FindFirstChildOfClass("Humanoid")
-
-            if hum and hum.Health > 0 then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if head and hum and hum.Health > 0 then
+                local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 
-                if onScreen and isVisible(part, char) then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if dist < closestDist then
-                        closestDist = dist
-                        selected = player
+                if onScreen and isVisible(head) then
+                    local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                    
+                    if distance < shortestDistance then
+                        target = {part = head, screenPos = Vector2.new(pos.X, pos.Y)}
+                        shortestDistance = distance
                     end
                 end
             end
         end
     end
-    return selected
+    return target
 end
 
--- Input Listeners
 UIS.InputBegan:Connect(function(input)
-    if input.UserInputType == Config.Key or input.KeyCode == Config.Key then
-        isAiming = true
+    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
+        segurandoBotao = true
     end
 end)
 
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Config.Key or input.KeyCode == Config.Key then
-        isAiming = false
-        currentTarget = nil -- Limpa o alvo ao soltar o botão
+    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
+        segurandoBotao = false
     end
 end)
 
--- Loop Principal de Alta Frequência
-RS.RenderStepped:Connect(function(deltaTime)
+RS.RenderStepped:Connect(function()
     local mouseLocation = UIS:GetMouseLocation()
     
-    -- UI do FOV
-    FOVCircle.Visible = true
-    FOVCircle.Radius = Config.FOV
+    FOVCircle.Visible = _G.ShowFOV
+    FOVCircle.Radius = _G.AimbotFOV
     FOVCircle.Position = mouseLocation
+    FOVCircle.Color = _G.AimbotFOVColor or Color3.fromRGB(255, 0, 0)
 
-    if Config.Enabled and isAiming then
-        -- Mantém o alvo atual ou busca um novo se necessário
-        if not currentTarget or not currentTarget.Character or not currentTarget.Character:FindFirstChild("Humanoid") or currentTarget.Character.Humanoid.Health <= 0 then
-            currentTarget = getBestTarget()
-        end
-
-        if currentTarget and currentTarget.Character then
-            local targetPart = currentTarget.Character:FindFirstChild(Config.TargetPart)
-            if targetPart then
-                -- CÁLCULO DE PREDIÇÃO:
-                -- Prevemos a posição baseada na velocidade do alvo multiplicada pelo delta de tempo
-                local velocity = targetPart.Velocity
-                local predictedPosition = targetPart.Position + (velocity * Config.PredictionAmount)
-                
-                local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPosition)
-                
-                if onScreen then
-                    -- Interpolação para movimento suave (Lerp Espacial)
-                    local targetVec = Vector2.new(screenPos.X, screenPos.Y)
-                    local diff = targetVec - mouseLocation
-                    
-                    -- Se o executor suportar mousemoverel, ele é mais furtivo e eficiente
-                    if mousemoverel then
-                        mousemoverel(diff.X * Config.Smoothness, diff.Y * Config.Smoothness)
-                    else
-                        -- Fallback para câmera direta se não houver mousemoverel
-                        local lookAt = CFrame.new(Camera.CFrame.Position, predictedPosition)
-                        Camera.CFrame = Camera.CFrame:Lerp(lookAt, Config.Smoothness)
-                    end
-                else
-                    currentTarget = nil -- Perdeu de vista, busca outro
-                end
+    if _G.AimbotEnabled and segurandoBotao then
+        local targetData = getClosestPlayer()
+        
+        if targetData then
+            if mousemoverel then
+                -- Método 1: Movimento Relativo (Melhor para anti-cheat e suavidade)
+                local mouseMoveX = (targetData.screenPos.X - mouseLocation.X) * _G.AimbotSmoothness
+                local mouseMoveY = (targetData.screenPos.Y - mouseLocation.Y) * _G.AimbotSmoothness
+                mousemoverel(mouseMoveX, mouseMoveY)
+            else
+                -- Método 2: CFrame Lerp (Garante foco direto em 3ª pessoa)
+                local lookAt = CFrame.new(Camera.CFrame.Position, targetData.part.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(lookAt, _G.AimbotSmoothness)
             end
         end
     end
