@@ -1,50 +1,50 @@
 -- // Configurações Globais (Integre com sua UI)
-_G.AimbotEnabled = false
-_G.SilentAimEnabled = false
-_G.HitboxEnabled = false -- Ativa/Desativa o Expander
+_G.AimbotEnabled = true
+_G.HitboxEnabled = true -- Expander de Hitbox
 
 _G.AimbotSmoothness = 0.15
 _G.PredictionAmount = 0.165
-_G.TargetPart = "Head" -- Alvo do Aimbot/Silent Aim
+_G.TargetPart = "Head" 
 
--- // Configurações de Hitbox
-_G.HitboxPart = "HumanoidRootPart" -- "Head" ou "HumanoidRootPart"
-_G.HitboxSize = 2 -- Aumente via Slider (ex: 2 a 15)
+-- // Configurações de Hitbox (Operação Segura)
+_G.HitboxPart = "HumanoidRootPart" 
+_G.HitboxSize = 4 -- Tamanho moderado para evitar detecção visual/física
 _G.HitboxTransparency = 0.7
 
 _G.FOV = 100
-_G.ShowFOV = false
-_G.FOVColor = Color3.fromRGB(255, 255, 255)
+_G.ShowFOV = true
+_G.FOVColor = Color3.fromRGB(0, 255, 255)
 
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
 
--- // Detecção de Funções do Executor
+-- // Detecção Segura de Funções (Não manipula serviços proibidos)
 local mousemoverel = mousemoverel or (Input and Input.MoveMouseRelative) or function() end
 
--- // Desenho do FOV
+-- // Desenho do FOV (Utiliza Drawing API, geralmente ignorada por Disallowed Services)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
-FOVCircle.NumSides = 100
+FOVCircle.NumSides = 64
 FOVCircle.Visible = false
 FOVCircle.ZIndex = 999
 
--- // Função para pegar o jogador mais próximo
+-- // Função de Detecção Otimizada
 local function getClosestPlayer()
     local target = nil
     local shortestDistance = _G.FOV
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(_G.TargetPart) then
-            local part = player.Character[_G.TargetPart]
-            local hum = player.Character:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 then
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local part = player.Character:FindFirstChild(_G.TargetPart)
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            
+            if part and hum and hum.Health > 0 then
                 local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
                 if onScreen then
-                    local distance = (Vector2.new(pos.X, pos.Y) - UIS:GetMouseLocation()).Magnitude
+                    local mouseLoc = UIS:GetMouseLocation()
+                    local distance = (Vector2.new(pos.X, pos.Y) - mouseLoc).Magnitude
                     if distance < shortestDistance then
                         target = player
                         shortestDistance = distance
@@ -56,107 +56,50 @@ local function getClosestPlayer()
     return target
 end
 
--- // --- SISTEMA DE HITBOX EXPANDER (Técnica Anti-Bug) ---
+-- // --- SISTEMA DE HITBOX EXPANDER (Operação Externa Segura) ---
+-- Esta função altera propriedades físicas simples, o que raramente causa Disallowed Services
 task.spawn(function()
     while true do
-        task.wait(0.5) -- Intervalo para não sobrecarregar o processador
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local head = player.Character:FindFirstChild("Head")
-                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                
-                if _G.HitboxEnabled then
+        task.wait(1) 
+        if _G.HitboxEnabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
                     local target = player.Character:FindFirstChild(_G.HitboxPart)
-                    if target then
+                    if target and target:IsA("BasePart") then
                         target.Size = Vector3.new(_G.HitboxSize, _G.HitboxSize, _G.HitboxSize)
                         target.Transparency = _G.HitboxTransparency
-                        target.CanCollide = false -- Essencial para não bugar física
+                        target.CanCollide = false
                     end
-                else
-                    -- Reseta para o padrão quando desativado
-                    if head then head.Size = Vector3.new(2, 1, 1) head.Transparency = 0 end
-                    if hrp then hrp.Size = Vector3.new(2, 2, 1) hrp.Transparency = 1 end
                 end
             end
         end
     end
 end)
 
--- // --- SISTEMA DE SILENT AIM MULTI-MÉTODO ---
-local function ApplyHooks()
-    local success, gmt = pcall(getrawmetatable, game)
-    if not success then 
-        warn("Executor não suporta Metatable.")
-        return 
-    end
-    
-    local oldIndex = gmt.__index
-    local oldNamecall = gmt.__namecall
-    setreadonly(gmt, false)
-
-    gmt.__index = newcclosure(function(self, key)
-        if _G.SilentAimEnabled and not checkcaller() then
-            if self == Mouse and (key == "Hit" or key == "Target") then
-                local target = getClosestPlayer()
-                if target and target.Character then
-                    local part = target.Character:FindFirstChild(_G.TargetPart)
-                    if part then
-                        local endpoint = part.Position + (part.Velocity * _G.PredictionAmount)
-                        return (key == "Hit" and CFrame.new(endpoint) or part)
-                    end
-                end
-            end
-        end
-        return oldIndex(self, key)
-    end)
-
-    gmt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-
-        if _G.SilentAimEnabled and not checkcaller() then
-            local target = getClosestPlayer()
-            if target and target.Character then
-                local part = target.Character:FindFirstChild(_G.TargetPart)
-                if part then
-                    local endpoint = part.Position + (part.Velocity * _G.PredictionAmount)
-                    
-                    if method == "Raycast" then
-                        args[2] = (endpoint - args[1]).Unit * 5000
-                        return oldNamecall(self, table.unpack(args))
-                    end
-                    
-                    if method:find("FindPartOnRay") then
-                        args[1] = Ray.new(Camera.CFrame.Position, (endpoint - Camera.CFrame.Position).Unit * 5000)
-                        return oldNamecall(self, table.unpack(args))
-                    end
-                end
-            end
-        end
-        return oldNamecall(self, ...)
-    end)
-    
-    setreadonly(gmt, true)
-end
-
-ApplyHooks()
-
--- // LOOP DE RENDERIZAÇÃO
+-- // --- LOOP DE RENDERIZAÇÃO (Bypass Mode) ---
 RS.RenderStepped:Connect(function()
     FOVCircle.Visible = _G.ShowFOV
     FOVCircle.Radius = _G.FOV
     FOVCircle.Position = UIS:GetMouseLocation()
     FOVCircle.Color = _G.FOVColor
 
-    local target = getClosestPlayer()
-    if target and target.Character then
-        local part = target.Character:FindFirstChild(_G.TargetPart)
-        if part and _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-            local prediction = part.Position + (part.Velocity * _G.PredictionAmount)
-            local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
-            if onScreen then
-                local mouseLoc = UIS:GetMouseLocation()
-                mousemoverel((screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, (screenPos.Y - mouseLoc.Y) * _G.AimbotSmoothness)
+    -- Aimbot Baseado em Câmera/Mouse (Não usa Hooks de Metatable)
+    if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local target = getClosestPlayer()
+        if target and target.Character then
+            local part = target.Character:FindFirstChild(_G.TargetPart)
+            if part then
+                local prediction = part.Position + (part.Velocity * _G.PredictionAmount)
+                local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
+                
+                if onScreen then
+                    local mouseLoc = UIS:GetMouseLocation()
+                    -- O segredo do bypass aqui é o Smoothness: movimentos suaves não disparam heurísticas
+                    mousemoverel(
+                        (screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, 
+                        (screenPos.Y - mouseLoc.Y) * _G.AimbotSmoothness
+                    )
+                end
             end
         end
     end
