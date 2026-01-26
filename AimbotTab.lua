@@ -4,13 +4,7 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Configurações Globais
-_G.AimbotEnabled = _G.AimbotEnabled or true
-_G.AimbotFOV = _G.AimbotFOV or 150
-_G.ShowFOV = _G.ShowFOV or true
-_G.AimbotSmoothness = _G.AimbotSmoothness or 0.15 -- No mousemoverel, valores baixos são mais suaves
-_G.AimbotKey = _G.AimbotKey or Enum.UserInputType.MouseButton2
-
+-- O círculo é criado apenas uma vez
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 100
@@ -21,7 +15,8 @@ local segurandoBotao = false
 
 local function getClosestPlayer()
     local target = nil
-    local shortestDistance = _G.AimbotFOV
+    -- Aqui ele usa o FOV Universal
+    local shortestDistance = _G.UniversalFOV or 100 
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -29,13 +24,13 @@ local function getClosestPlayer()
             local hum = player.Character:FindFirstChild("Humanoid")
             
             if head and hum and hum.Health > 0 then
-                -- Converte a posição 3D da cabeça para 2D na sua tela
                 local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 
                 if onScreen then
                     local mouseLocation = UIS:GetMouseLocation()
                     local distance = (Vector2.new(pos.X, pos.Y) - mouseLocation).Magnitude
                     
+                    -- Verifica se está dentro do FOV unificado
                     if distance < shortestDistance then
                         target = head
                         shortestDistance = distance
@@ -47,6 +42,7 @@ local function getClosestPlayer()
     return target
 end
 
+-- Input Listeners (AimbotKey continua sendo específico do Aimbot)
 UIS.InputBegan:Connect(function(input)
     if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
         segurandoBotao = true
@@ -60,29 +56,29 @@ UIS.InputEnded:Connect(function(input)
 end)
 
 RS.RenderStepped:Connect(function()
-    FOVCircle.Visible = _G.ShowFOV
-    FOVCircle.Radius = _G.AimbotFOV
+    -- Sincronização com o Painel Profissional (Variáveis Universais)
+    FOVCircle.Visible = _G.ShowFOV or false
+    FOVCircle.Radius = _G.FOV or 100
+    FOVCircle.Color = _G.FOVColor or Color3.fromRGB(255, 255, 255)
     FOVCircle.Position = UIS:GetMouseLocation()
 
+    -- Lógica de disparo específica do Aimbot
     if _G.AimbotEnabled and segurandoBotao then
         local targetPart = getClosestPlayer()
-        
         if targetPart then
             local mouseLocation = UIS:GetMouseLocation()
-            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            local prediction = targetPart.Position + (targetPart.Velocity * (_G.PredictionAmount or 0.165))
+            local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
             
             if onScreen then
-                -- Calcula a distância que o mouse precisa percorrer
                 local targetVector = Vector2.new(screenPos.X, screenPos.Y)
-                local mouseMoveVector = (targetVector - mouseLocation) * _G.AimbotSmoothness
+                local mouseMoveVector = (targetVector - mouseLocation) * (_G.AimbotSmoothness or 0.15)
                 
-                -- O segredo para a Terceira Pessoa: mover o cursor propriamente dito
                 if mousemoverel then
                     mousemoverel(mouseMoveVector.X, mouseMoveVector.Y)
                 else
-                    -- Fallback caso o executor não tenha mousemoverel (menos preciso em 3ª pessoa)
-                    local lookAtGoal = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                    Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, _G.AimbotSmoothness)
+                    local lookAtGoal = CFrame.new(Camera.CFrame.Position, prediction)
+                    Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, _G.AimbotSmoothness or 0.15)
                 end
             end
         end
