@@ -1,6 +1,6 @@
 -- // Configurações Globais (Integre com sua UI)
-_G.AimbotEnabled = true
-_G.HitboxEnabled = true -- Expander de Hitbox
+_G.AimbotEnabled = false
+_G.HitboxEnabled = false -- Expander de Hitbox
 
 _G.AimbotSmoothness = 0.15
 _G.PredictionAmount = 0.165
@@ -12,7 +12,7 @@ _G.HitboxSize = 4 -- Tamanho moderado para evitar detecção visual/física
 _G.HitboxTransparency = 0.7
 
 _G.FOV = 100
-_G.ShowFOV = true
+_G.ShowFOV = false
 _G.FOVColor = Color3.fromRGB(0, 255, 255)
 
 local Players = game:GetService("Players")
