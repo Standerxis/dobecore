@@ -4,19 +4,19 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- O círculo é criado apenas uma vez
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 100
 FOVCircle.Filled = false
 FOVCircle.Transparency = 1
+FOVCircle.Visible = false
+FOVCircle.ZIndex = 999
 
 local segurandoBotao = false
 
 local function getClosestPlayer()
     local target = nil
-    -- Alinhado com _G.FOVRadius da UI
-    local shortestDistance = _G.FOVRadius or 100 
+    local shortestDistance = _G.FOV or 100 
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -41,33 +41,28 @@ local function getClosestPlayer()
     return target
 end
 
--- Gerenciamento de Input
 UIS.InputBegan:Connect(function(input)
-    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
+    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
         segurandoBotao = true
     end
 end)
 
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
+    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
         segurandoBotao = false
     end
 end)
 
--- Loop Principal
 RS.RenderStepped:Connect(function()
-    -- Sincronização com as Variáveis da sua UI
     FOVCircle.Visible = _G.ShowFOV or false
-    FOVCircle.Radius = _G.FOVRadius or 100
+    FOVCircle.Radius = _G.FOV or 100
     FOVCircle.Color = _G.FOVColor or Color3.fromRGB(255, 255, 255)
     FOVCircle.Position = UIS:GetMouseLocation()
 
-    -- Lógica de disparo
     if _G.AimbotEnabled and segurandoBotao then
         local targetPart = getClosestPlayer()
         if targetPart then
             local mouseLocation = UIS:GetMouseLocation()
-            -- Predição e Suavidade vindas da UI
             local prediction = targetPart.Position + (targetPart.Velocity * (_G.PredictionAmount or 0.165))
             local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
             
