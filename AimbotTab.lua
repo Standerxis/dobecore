@@ -3,6 +3,7 @@ _G.AimbotEnabled = false
 _G.HitboxEnabled = false
 _G.AutoFire = false 
 _G.AutoFirePrecision = 15
+_G.AutoInterval = 0.1 -- Intervalo entre cliques (Ex: 0.1 é rápido, 0.5 é lento)
 
 _G.AimbotSmoothness = 0.15
 _G.PredictionAmount = 0.165
@@ -24,17 +25,19 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- // Função de Clique Corrigida
+-- // Função de Clique (Auto-Fire) com Intervalo Configurável
 local isClicking = false
 local function RealClick(targetPos)
     if isClicking then return end
     isClicking = true
     task.spawn(function()
-        -- Clique direto na posição enviada (screenPos do alvo)
+        -- Envia o clique na posição exata da tela
         VirtualInputManager:SendMouseButtonEvent(targetPos.X, targetPos.Y, 0, true, game, 1)
-        task.wait(math.random(15, 30)/1000) -- Tempo de pressão do clique
+        task.wait(math.random(15, 30)/1000) -- Tempo de pressão (click down/up)
         VirtualInputManager:SendMouseButtonEvent(targetPos.X, targetPos.Y, 0, false, game, 1)
-        task.wait(0.1) -- Delay entre tiros (ajuste conforme a arma)
+        
+        -- Espera o intervalo definido antes de permitir o próximo clique
+        task.wait(_G.AutoInterval) 
         isClicking = false
     end)
 end
@@ -74,7 +77,7 @@ local function getClosestPlayer()
     return target
 end
 
--- // --- SISTEMA DE HITBOX EXPANDER (Otimizado) ---
+-- // --- SISTEMA DE HITBOX EXPANDER (Com Reset de Estado) ---
 task.spawn(function()
     while true do
         task.wait(0.5) 
@@ -87,7 +90,7 @@ task.spawn(function()
                         targetPart.Transparency = _G.HitboxTransparency
                         targetPart.CanCollide = false
                     else
-                        -- Reseta a hitbox para o padrão (2, 2, 1) se desativado
+                        -- Retorna ao tamanho padrão se a função for desligada
                         targetPart.Size = Vector3.new(2, 2, 1)
                         targetPart.Transparency = 0
                         targetPart.CanCollide = true
@@ -98,7 +101,7 @@ task.spawn(function()
     end
 end)
 
--- // --- LOOP DE RENDERIZAÇÃO ---
+-- // --- LOOP DE RENDERIZAÇÃO (Aimbot + Auto-Fire) ---
 local lastTargetName = ""
 
 RS.RenderStepped:Connect(function()
@@ -123,7 +126,7 @@ RS.RenderStepped:Connect(function()
             if onScreen then
                 local mouseLoc = UIS:GetMouseLocation()
                 
-                -- 1. Aimbot (Suavizado)
+                -- 1. Movimentação do Aimbot (Botão Direito)
                 if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
                     mousemoverel(
                         (screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, 
@@ -131,14 +134,12 @@ RS.RenderStepped:Connect(function()
                     )
                 end
                 
-                -- 2. Auto-Fire (Triggerbot)
+                -- 2. Disparo Automático (Auto-Fire)
                 if _G.AutoFire then
-                    -- Calcula distância entre o mouse e a posição da cabeça na tela
                     local distanceToTarget = (Vector2.new(screenPos.X, screenPos.Y) - mouseLoc).Magnitude
                     
-                    -- Verifica se a mira está dentro do limite de precisão
+                    -- Verifica se a mira está em cima do alvo baseado na precisão
                     if distanceToTarget <= (_G.AutoFirePrecision or 15) then 
-                        -- Passa a screenPos exata do alvo para o clique
                         RealClick(screenPos)
                     end
                 end
