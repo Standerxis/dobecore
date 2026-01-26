@@ -119,9 +119,10 @@ RS.RenderStepped:Connect(function()
                     
                     -- Lógica de Auto-Fire (Atira se estiver perto do alvo)
                     if _G.AutoFire then
-                        local distanceToTarget = (Vector2.new(screenPos.X, screenPos.Y) - mouseLoc).Magnitude
-                        if distanceToTarget < 20 then -- Raio de precisão para disparar
-                            RealClick(mouseLoc.X, mouseLoc.Y)
+                    local distanceToTarget = (Vector2.new(screenPos.X, screenPos.Y) - mouseLoc).Magnitude
+    -- Agora usa a precisão definida pelo slider da UI (padrão 15)
+                    if distanceToTarget < (_G.AutoFirePrecision or 15) then 
+                    RealClick(mouseLoc.X, mouseLoc.Y)
                         end
                     end
                 end
