@@ -1,4 +1,4 @@
--- // Configurações Globais (Iniciando valores para evitar erro de nil)
+-- // Configurações Globais
 _G.AimbotEnabled = _G.AimbotEnabled or false
 _G.FOV = _G.FOV or 100
 _G.FOVColor = _G.FOVColor or Color3.fromRGB(255, 255, 255)
@@ -14,15 +14,28 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+print("--- [DEBUG] Script Iniciado ---")
+
 -- // Inicialização do Círculo de FOV
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1
-FOVCircle.NumSides = 64
-FOVCircle.Filled = false
-FOVCircle.Transparency = 1
-FOVCircle.Visible = false
+local FOVCircle
+local drawingSuccess, err = pcall(function()
+    FOVCircle = Drawing.new("Circle")
+    FOVCircle.Thickness = 1
+    FOVCircle.NumSides = 64
+    FOVCircle.Filled = false
+    FOVCircle.Transparency = 1
+    FOVCircle.Visible = false
+    return FOVCircle
+end)
+
+if not drawingSuccess or not FOVCircle then
+    warn("--- [ERRO] Executor não suporta Drawing Lib! O FOV não aparecerá. ---")
+else
+    print("--- [DEBUG] Drawing Lib carregada com sucesso. ---")
+end
 
 local segurandoBotao = false
+local lastFovState = _G.ShowFOV
 
 -- // Função para encontrar o alvo mais próximo
 local function getClosestPlayer()
@@ -58,6 +71,7 @@ UIS.InputBegan:Connect(function(input, processed)
     local key = _G.AimbotKey
     if input.UserInputType == key or input.KeyCode == key then
         segurandoBotao = true
+        -- print("[DEBUG] Botão pressionado")
     end
 end)
 
@@ -65,12 +79,19 @@ UIS.InputEnded:Connect(function(input)
     local key = _G.AimbotKey
     if input.UserInputType == key or input.KeyCode == key then
         segurandoBotao = false
+        -- print("[DEBUG] Botão solto")
     end
 end)
 
 -- // Loop de Renderização
 RS.RenderStepped:Connect(function()
-    -- Sincronização do FOV (Onde estava o problema)
+    -- Debug de estado do FOV (Só printa quando muda)
+    if _G.ShowFOV ~= lastFovState then
+        print("[DEBUG] ShowFOV mudou para: " .. tostring(_G.ShowFOV))
+        lastFovState = _G.ShowFOV
+    end
+
+    -- Atualização Visual do FOV
     if FOVCircle then
         FOVCircle.Visible = _G.ShowFOV
         FOVCircle.Radius = _G.FOV
@@ -86,7 +107,6 @@ RS.RenderStepped:Connect(function()
             local pred = _G.PredictionAmount
             local smooth = _G.AimbotSmoothness
             
-            -- Pega a velocidade real do RootPart para uma predição precisa
             local rootPart = targetPart.Parent:FindFirstChild("HumanoidRootPart")
             local velocity = rootPart and rootPart.Velocity or Vector3.new(0,0,0)
             
@@ -98,12 +118,10 @@ RS.RenderStepped:Connect(function()
                 local targetVector = Vector2.new(screenPos.X, screenPos.Y)
                 
                 if mousemoverel then
-                    -- Movimentação Relativa (Mouse)
                     local moveX = (targetVector.X - mouseLocation.X) * smooth
                     local moveY = (targetVector.Y - mouseLocation.Y) * smooth
                     mousemoverel(moveX, moveY)
                 else
-                    -- Movimentação de Câmera (Caso o executor não tenha mousemoverel)
                     local lookAtGoal = CFrame.new(Camera.CFrame.Position, prediction)
                     Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, smooth)
                 end
