@@ -1,30 +1,48 @@
--- // Configurações Globais (Integre com sua UI)
+-- // Configurações Globais
 _G.AimbotEnabled = false
-_G.HitboxEnabled = false -- Expander de Hitbox
+_G.HitboxEnabled = false
+_G.AutoFire = false -- Ativa/Desativa o disparo automático
 
 _G.AimbotSmoothness = 0.15
 _G.PredictionAmount = 0.165
 _G.TargetPart = "Head" 
 
--- // Configurações de Hitbox (Operação Segura)
+-- // Configurações de Hitbox
 _G.HitboxPart = "HumanoidRootPart" 
-_G.HitboxSize = 4 -- Tamanho moderado para evitar detecção visual/física
+_G.HitboxSize = 4
 _G.HitboxTransparency = 0.7
 
 _G.FOV = 100
 _G.ShowFOV = false
 _G.FOVColor = Color3.fromRGB(0, 255, 255)
 
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- // Detecção Segura de Funções (Não manipula serviços proibidos)
+-- // Função de Clique (Auto-Fire)
+local isClicking = false
+local function RealClick(x, y)
+    if isClicking then return end
+    isClicking = true
+    task.spawn(function()
+        VirtualInputManager:SendMouseMoveEvent(x + math.random(-2,2), y + math.random(-2,2), game)
+        task.wait(math.random(5,10)/1000)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+        task.wait(math.random(10,20)/1000)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+        task.wait(0.1) -- Delay entre tiros
+        isClicking = false
+    end)
+end
+
+-- // Detecção Segura de Funções
 local mousemoverel = mousemoverel or (Input and Input.MoveMouseRelative) or function() end
 
--- // Desenho do FOV (Utiliza Drawing API, geralmente ignorada por Disallowed Services)
+-- // Desenho do FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 64
@@ -56,8 +74,7 @@ local function getClosestPlayer()
     return target
 end
 
--- // --- SISTEMA DE HITBOX EXPANDER (Operação Externa Segura) ---
--- Esta função altera propriedades físicas simples, o que raramente causa Disallowed Services
+-- // --- SISTEMA DE HITBOX EXPANDER ---
 task.spawn(function()
     while true do
         task.wait(1) 
@@ -76,14 +93,13 @@ task.spawn(function()
     end
 end)
 
--- // --- LOOP DE RENDERIZAÇÃO (Bypass Mode) ---
+-- // --- LOOP DE RENDERIZAÇÃO (Aimbot + Auto-Fire) ---
 RS.RenderStepped:Connect(function()
     FOVCircle.Visible = _G.ShowFOV
     FOVCircle.Radius = _G.FOV
     FOVCircle.Position = UIS:GetMouseLocation()
     FOVCircle.Color = _G.FOVColor
 
-    -- Aimbot Baseado em Câmera/Mouse (Não usa Hooks de Metatable)
     if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local target = getClosestPlayer()
         if target and target.Character then
@@ -94,11 +110,20 @@ RS.RenderStepped:Connect(function()
                 
                 if onScreen then
                     local mouseLoc = UIS:GetMouseLocation()
-                    -- O segredo do bypass aqui é o Smoothness: movimentos suaves não disparam heurísticas
+                    
+                    -- Movimento do Aimbot
                     mousemoverel(
                         (screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, 
                         (screenPos.Y - mouseLoc.Y) * _G.AimbotSmoothness
                     )
+                    
+                    -- Lógica de Auto-Fire (Atira se estiver perto do alvo)
+                    if _G.AutoFire then
+                        local distanceToTarget = (Vector2.new(screenPos.X, screenPos.Y) - mouseLoc).Magnitude
+                        if distanceToTarget < 20 then -- Raio de precisão para disparar
+                            RealClick(mouseLoc.X, mouseLoc.Y)
+                        end
+                    end
                 end
             end
         end
