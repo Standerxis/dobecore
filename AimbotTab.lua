@@ -1,4 +1,5 @@
 -- // Configurações Globais
+print("teste")
 _G.AimbotEnabled = false
 _G.SilentAimEnabled = false
 _G.AimbotSmoothness = 0.15
