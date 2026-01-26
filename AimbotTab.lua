@@ -4,11 +4,13 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Configurações Padrão (Caso não definidas via UI)
+-- Configurações Padrão
 _G.AimbotEnabled = _G.AimbotEnabled or true
 _G.AimbotFOV = _G.AimbotFOV or 150
-_G.AimbotSmoothness = _G.AimbotSmoothness or 0.15 -- Menor = Mais suave
+_G.AimbotSmoothness = _G.AimbotSmoothness or 0.15
 _G.ShowFOV = _G.ShowFOV or true
+-- Se não houver tecla definida, o padrão será o Botão Direito (MouseButton2)
+_G.AimbotKey = _G.AimbotKey or Enum.UserInputType.MouseButton2
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
@@ -18,18 +20,16 @@ FOVCircle.Filled = false
 
 local segurandoBotao = false
 
--- Função para checar se há obstáculos entre você e o alvo
 local function isVisible(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
     
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {character, targetPart.Parent} -- Ignora você e o alvo
+    params.FilterDescendantsInstances = {character, targetPart.Parent}
     
     local result = workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit * 500, params)
-    
-    return result == nil -- Se for nil, não bateu em nada (visível)
+    return result == nil
 end
 
 local function getClosestPlayer()
@@ -47,7 +47,6 @@ local function getClosestPlayer()
                 
                 if onScreen and isVisible(head) then
                     local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                    
                     if distance < shortestDistance then
                         target = {part = head, screenPos = Vector2.new(pos.X, pos.Y)}
                         shortestDistance = distance
@@ -59,27 +58,23 @@ local function getClosestPlayer()
     return target
 end
 
--- Detecção de ativação (Aceita KeyCode ou Mouse)
+-- Lógica de Entrada Corrigida
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     
-    -- Pega a bind atual (seja ela Mouse ou Tecla)
-    local currentBind = _G.AimbotKey 
+    -- Verifica se a bind atual é Unknown. Se for, usa o Botão Direito como Fallback.
+    local activeBind = (_G.AimbotKey == Enum.KeyCode.Unknown) and Enum.UserInputType.MouseButton2 or _G.AimbotKey
     
-    if currentBind and currentBind ~= Enum.KeyCode.Unknown then
-        if input.KeyCode == currentBind or input.UserInputType == currentBind then
-            segurandoBotao = true
-        end
+    if input.KeyCode == activeBind or input.UserInputType == activeBind then
+        segurandoBotao = true
     end
 end)
 
 UIS.InputEnded:Connect(function(input)
-    local currentBind = _G.AimbotKey 
+    local activeBind = (_G.AimbotKey == Enum.KeyCode.Unknown) and Enum.UserInputType.MouseButton2 or _G.AimbotKey
     
-    if currentBind and currentBind ~= Enum.KeyCode.Unknown then
-        if input.KeyCode == currentBind or input.UserInputType == currentBind then
-            segurandoBotao = false
-        end
+    if input.KeyCode == activeBind or input.UserInputType == activeBind then
+        segurandoBotao = false
     end
 end)
 
@@ -89,19 +84,17 @@ RS.RenderStepped:Connect(function()
     FOVCircle.Visible = _G.ShowFOV
     FOVCircle.Radius = _G.AimbotFOV
     FOVCircle.Position = mouseLocation
-    FOVCircle.Color = _G.AimbotFOVColor or Color3.fromRGB(255, 0, 0)
+    FOVCircle.Color = _G.AimbotFOVColor or Color3.fromRGB(255, 255, 255)
 
     if _G.AimbotEnabled and segurandoBotao then
         local targetData = getClosestPlayer()
         
         if targetData then
             if mousemoverel then
-                -- Método 1: Movimento Relativo (Melhor para anti-cheat e suavidade)
                 local mouseMoveX = (targetData.screenPos.X - mouseLocation.X) * _G.AimbotSmoothness
                 local mouseMoveY = (targetData.screenPos.Y - mouseLocation.Y) * _G.AimbotSmoothness
                 mousemoverel(mouseMoveX, mouseMoveY)
             else
-                -- Método 2: CFrame Lerp (Garante foco direto em 3ª pessoa)
                 local lookAt = CFrame.new(Camera.CFrame.Position, targetData.part.Position)
                 Camera.CFrame = Camera.CFrame:Lerp(lookAt, _G.AimbotSmoothness)
             end
