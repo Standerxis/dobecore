@@ -4,19 +4,18 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Criação do Círculo Único
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 100
 FOVCircle.Filled = false
 FOVCircle.Transparency = 1
+FOVCircle.Visible = false
 
 local segurandoBotao = false
 
 local function getClosestPlayer()
     local target = nil
-    -- Usa a variável global unificada da UI
-    local shortestDistance = _G.FOV or 100 
+    local shortestDistance = _G.FOV or 100 -- Segurança: se a UI não carregou, usa 100
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -30,7 +29,6 @@ local function getClosestPlayer()
                     local mouseLocation = UIS:GetMouseLocation()
                     local distance = (Vector2.new(pos.X, pos.Y) - mouseLocation).Magnitude
                     
-                    -- Trava apenas se estiver dentro do círculo visível
                     if distance < shortestDistance then
                         target = head
                         shortestDistance = distance
@@ -42,47 +40,46 @@ local function getClosestPlayer()
     return target
 end
 
--- Gerenciamento de Input
 UIS.InputBegan:Connect(function(input)
-    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
+    local key = _G.AimbotKey or Enum.UserInputType.MouseButton2
+    if input.UserInputType == key or input.KeyCode == key then
         segurandoBotao = true
     end
 end)
 
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
+    local key = _G.AimbotKey or Enum.UserInputType.MouseButton2
+    if input.UserInputType == key or input.KeyCode == key then
         segurandoBotao = false
     end
 end)
 
--- Loop Principal
 RS.RenderStepped:Connect(function()
-    -- Sincronização Global do FOV
+    -- Sincronização Estrita com as Globais da UI
     FOVCircle.Visible = _G.ShowFOV or false
     FOVCircle.Radius = _G.FOV or 100
     FOVCircle.Color = _G.FOVColor or Color3.fromRGB(255, 255, 255)
     FOVCircle.Position = UIS:GetMouseLocation()
 
-    -- Execução do Aimbot
     if _G.AimbotEnabled and segurandoBotao then
         local targetPart = getClosestPlayer()
         if targetPart then
             local mouseLocation = UIS:GetMouseLocation()
-            -- Predição para evitar lag em 3ª pessoa
-            local prediction = targetPart.Position + (targetPart.Velocity * (_G.PredictionAmount or 0.165))
+            local pred = _G.PredictionAmount or 0.165
+            local smooth = _G.AimbotSmoothness or 0.15
+            
+            local prediction = targetPart.Position + (targetPart.Velocity * pred)
             local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
             
             if onScreen then
                 local targetVector = Vector2.new(screenPos.X, screenPos.Y)
-                local mouseMoveVector = (targetVector - mouseLocation) * (_G.AimbotSmoothness or 0.15)
+                local mouseMoveVector = (targetVector - mouseLocation) * smooth
                 
-                -- Prioriza mousemoverel para cravar o cursor em 3ª pessoa
                 if mousemoverel then
                     mousemoverel(mouseMoveVector.X, mouseMoveVector.Y)
                 else
-                    -- Fallback de CFrame
                     local lookAtGoal = CFrame.new(Camera.CFrame.Position, prediction)
-                    Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, _G.AimbotSmoothness or 0.15)
+                    Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, smooth)
                 end
             end
         end
