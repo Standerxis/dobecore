@@ -1,11 +1,17 @@
 -- // Configurações Globais
 print("teste")
 _G.AimbotEnabled = false
+print("teste2")
 _G.SilentAimEnabled = false
+print("teste3")
 _G.AimbotSmoothness = 0.15
+print("teste4")
 _G.PredictionAmount = 0.165
+print("teste5")
 _G.TargetPart = "Head"
+print("teste6")
 _G.SilentAimMethod = "Mouse.Hit" -- Padrão inicial
+print("teste7")
 _G.FOV = 100
 print("teste2")
 _G.ShowFOV = false
