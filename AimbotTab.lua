@@ -15,7 +15,6 @@ local segurandoBotao = false
 
 local function getClosestPlayer()
     local target = nil
-    -- USA O FOV UNIVERSAL
     local shortestDistance = _G.FOVRadius or 100 
 
     for _, player in pairs(Players:GetPlayers()) do
@@ -30,7 +29,6 @@ local function getClosestPlayer()
                     local mouseLocation = UIS:GetMouseLocation()
                     local distance = (Vector2.new(pos.X, pos.Y) - mouseLocation).Magnitude
                     
-                    -- Filtra pelo círculo universal
                     if distance < shortestDistance then
                         target = head
                         shortestDistance = distance
@@ -42,7 +40,6 @@ local function getClosestPlayer()
     return target
 end
 
--- Input Listeners
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
     local key = _G.AimbotKey or Enum.UserInputType.MouseButton2
@@ -58,9 +55,7 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- Loop Principal Sincronizado
 RS.RenderStepped:Connect(function()
-    -- ATUALIZAÇÃO DO FOV UNIVERSAL
     if FOVCircle then
         FOVCircle.Visible = _G.ShowFOV or false
         FOVCircle.Radius = _G.FOVRadius or 100
@@ -68,7 +63,6 @@ RS.RenderStepped:Connect(function()
         FOVCircle.Position = UIS:GetMouseLocation()
     end
 
-    -- Lógica do Aimbot
     if _G.AimbotEnabled and segurandoBotao then
         local targetPart = getClosestPlayer()
         if targetPart then
