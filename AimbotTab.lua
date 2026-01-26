@@ -59,15 +59,27 @@ local function getClosestPlayer()
     return target
 end
 
-UIS.InputBegan:Connect(function(input)
-    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
-        segurandoBotao = true
+-- Detecção de ativação (Aceita KeyCode ou Mouse)
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    
+    -- Pega a bind atual (seja ela Mouse ou Tecla)
+    local currentBind = _G.AimbotKey 
+    
+    if currentBind and currentBind ~= Enum.KeyCode.Unknown then
+        if input.KeyCode == currentBind or input.UserInputType == currentBind then
+            segurandoBotao = true
+        end
     end
 end)
 
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
-        segurandoBotao = false
+    local currentBind = _G.AimbotKey 
+    
+    if currentBind and currentBind ~= Enum.KeyCode.Unknown then
+        if input.KeyCode == currentBind or input.UserInputType == currentBind then
+            segurandoBotao = false
+        end
     end
 end)
 
