@@ -2,8 +2,14 @@ local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 local Camera = workspace.CurrentCamera
+
+-- Inicialização de Variáveis Globais (caso não estejam definidas)
+_G.AimbotEnabled = _G.AimbotEnabled or true
+_G.AimbotFOV = _G.AimbotFOV or 150
+_G.ShowFOV = _G.ShowFOV or true
+_G.AimbotSmoothness = _G.AimbotSmoothness or 0.15 -- Ajuste entre 0.1 e 0.3
+_G.AimbotKey = _G.AimbotKey or Enum.UserInputType.MouseButton2
 
 -- Configuração do Círculo de FOV
 local FOVCircle = Drawing.new("Circle")
@@ -14,12 +20,13 @@ FOVCircle.Transparency = 1
 
 local segurandoBotao = false
 
+-- Função para encontrar o alvo mais próximo do centro da tela
 local function getClosestPlayer()
     local target = nil
-    local shortestDistance = _G.AimbotFOV or 100
+    local shortestDistance = _G.AimbotFOV
 
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        if player ~= LocalPlayer and player.Character then
             local head = player.Character:FindFirstChild("Head")
             local hum = player.Character:FindFirstChild("Humanoid")
             
@@ -27,7 +34,8 @@ local function getClosestPlayer()
                 local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 
                 if onScreen then
-                    local distance = (Vector2.new(pos.X, pos.Y) - UIS:GetMouseLocation()).Magnitude
+                    local mouseLocation = UIS:GetMouseLocation()
+                    local distance = (Vector2.new(pos.X, pos.Y) - mouseLocation).Magnitude
                     
                     if distance < shortestDistance then
                         target = head
@@ -40,34 +48,37 @@ local function getClosestPlayer()
     return target
 end
 
+-- Detecção de Clique
 UIS.InputBegan:Connect(function(input)
-    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
+    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
         segurandoBotao = true
     end
 end)
 
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == (_G.AimbotKey or Enum.UserInputType.MouseButton2) then
+    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
         segurandoBotao = false
     end
 end)
 
+-- Loop de Renderização (Onde a mágica acontece)
 RS.RenderStepped:Connect(function()
-    -- Atualiza o Círculo Visual
-    FOVCircle.Visible = _G.ShowFOV or false
-    FOVCircle.Radius = _G.AimbotFOV or 100
+    -- Gerenciamento do Círculo de FOV
+    FOVCircle.Visible = _G.ShowFOV
+    FOVCircle.Radius = _G.AimbotFOV
     FOVCircle.Color = _G.AimbotFOVColor or Color3.fromRGB(255, 255, 255)
     FOVCircle.Position = UIS:GetMouseLocation()
 
     if _G.AimbotEnabled and segurandoBotao then
         local targetPart = getClosestPlayer()
+        
         if targetPart then
-            -- Suavidade: quanto maior o número, mais lento/suave o movimento
-            local smoothness = _G.AimbotSmoothness or 0.1 
+            -- Para cravar em 3ª pessoa, precisamos alinhar a Câmera com a posição do alvo
+            -- Usamos a posição atual da câmera para manter o zoom e o ângulo, mas giramos para o alvo
+            local lookAtGoal = CFrame.new(Camera.CFrame.Position, targetPart.Position)
             
-            -- Em vez de teleportar a câmera, vamos rotacionar ela suavemente para o alvo
-            local lookAt = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(lookAt, smoothness)
+            -- O Lerp faz a suavidade. Se quiser 100% cravado instantâneo, use Smoothness = 1
+            Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, _G.AimbotSmoothness)
         end
     end
 end)
