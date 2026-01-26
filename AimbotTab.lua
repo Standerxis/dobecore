@@ -24,18 +24,17 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- // Função de Clique (Auto-Fire)
+-- // Função de Clique Corrigida
 local isClicking = false
-local function RealClick(x, y)
+local function RealClick(targetPos)
     if isClicking then return end
     isClicking = true
     task.spawn(function()
-        VirtualInputManager:SendMouseMoveEvent(x + math.random(-2,2), y + math.random(-2,2), game)
-        task.wait(math.random(5,10)/1000)
-        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
-        task.wait(math.random(10,20)/1000)
-        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
-        task.wait(0.1) 
+        -- Clique direto na posição enviada (screenPos do alvo)
+        VirtualInputManager:SendMouseButtonEvent(targetPos.X, targetPos.Y, 0, true, game, 1)
+        task.wait(math.random(15, 30)/1000) -- Tempo de pressão do clique
+        VirtualInputManager:SendMouseButtonEvent(targetPos.X, targetPos.Y, 0, false, game, 1)
+        task.wait(0.1) -- Delay entre tiros (ajuste conforme a arma)
         isClicking = false
     end)
 end
@@ -75,18 +74,23 @@ local function getClosestPlayer()
     return target
 end
 
--- // --- SISTEMA DE HITBOX EXPANDER ---
+-- // --- SISTEMA DE HITBOX EXPANDER (Otimizado) ---
 task.spawn(function()
     while true do
-        task.wait(1) 
-        if _G.HitboxEnabled then
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local target = player.Character:FindFirstChild(_G.HitboxPart)
-                    if target and target:IsA("BasePart") then
-                        target.Size = Vector3.new(_G.HitboxSize, _G.HitboxSize, _G.HitboxSize)
-                        target.Transparency = _G.HitboxTransparency
-                        target.CanCollide = false
+        task.wait(0.5) 
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local targetPart = player.Character:FindFirstChild(_G.HitboxPart)
+                if targetPart and targetPart:IsA("BasePart") then
+                    if _G.HitboxEnabled then
+                        targetPart.Size = Vector3.new(_G.HitboxSize, _G.HitboxSize, _G.HitboxSize)
+                        targetPart.Transparency = _G.HitboxTransparency
+                        targetPart.CanCollide = false
+                    else
+                        -- Reseta a hitbox para o padrão (2, 2, 1) se desativado
+                        targetPart.Size = Vector3.new(2, 2, 1)
+                        targetPart.Transparency = 0
+                        targetPart.CanCollide = true
                     end
                 end
             end
@@ -103,13 +107,11 @@ RS.RenderStepped:Connect(function()
     FOVCircle.Position = UIS:GetMouseLocation()
     FOVCircle.Color = _G.FOVColor
 
-    -- Procura o alvo o tempo todo (independente de clicar ou não)
     local target = getClosestPlayer()
     
     if target and target.Character then
-        -- Print no console apenas quando mudar de alvo para não floodar
         if lastTargetName ~= target.Name then
-            print("Jogador detectado no FOV: " .. target.Name)
+            print("Alvo no FOV: " .. target.Name)
             lastTargetName = target.Name
         end
 
@@ -121,7 +123,7 @@ RS.RenderStepped:Connect(function()
             if onScreen then
                 local mouseLoc = UIS:GetMouseLocation()
                 
-                -- 1. Movimento do Aimbot (Só se estiver segurando o Direito)
+                -- 1. Aimbot (Suavizado)
                 if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
                     mousemoverel(
                         (screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, 
@@ -129,16 +131,20 @@ RS.RenderStepped:Connect(function()
                     )
                 end
                 
-                -- 2. Lógica de Auto-Fire (Independente de mirar, se estiver na precisão ele atira)
+                -- 2. Auto-Fire (Triggerbot)
                 if _G.AutoFire then
+                    -- Calcula distância entre o mouse e a posição da cabeça na tela
                     local distanceToTarget = (Vector2.new(screenPos.X, screenPos.Y) - mouseLoc).Magnitude
-                    if distanceToTarget < (_G.AutoFirePrecision or 15) then 
-                        RealClick(mouseLoc.X, mouseLoc.Y)
+                    
+                    -- Verifica se a mira está dentro do limite de precisão
+                    if distanceToTarget <= (_G.AutoFirePrecision or 15) then 
+                        -- Passa a screenPos exata do alvo para o clique
+                        RealClick(screenPos)
                     end
                 end
             end
         end
     else
-        lastTargetName = "" -- Reseta se não houver ninguém no FOV
+        lastTargetName = ""
     end
 end)
