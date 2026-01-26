@@ -1,13 +1,16 @@
--- // Configurações Globais
-_G.AimbotEnabled = true
-_G.SilentAimEnabled = true
-_G.AutoShoot = true
-_G.FOV = 150
-_G.ShowFOV = true
-_G.PredictionAmount = 0.165 -- Ajuste dependendo da velocidade do projétil do jogo
-_G.Smoothness = 0.1 -- Para o Aimbot suave
-_G.TargetPart = "Head" -- "Head", "HumanoidRootPart", etc.
+-- // Configurações Iniciais via Globais (Sincronizadas com a UI)
+_G.AimbotEnabled = false
+_G.SilentAimEnabled = false
+_G.AutoShoot = false
+_G.FOV = 100
+_G.FOVColor = Color3.fromRGB(255, 255, 255)
+_G.ShowFOV = false
+_G.AimbotSmoothness = 0.15
+_G.PredictionAmount = 0.165
+_G.TargetPart = "Head"
+_G.AimbotKey = Enum.UserInputType.MouseButton2 
 
+-- // Serviços
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -15,7 +18,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- // Desenho do FOV
+-- // Desenho do FOV (Overlay)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 100
@@ -24,6 +27,7 @@ FOVCircle.Transparency = 1
 FOVCircle.Visible = false
 FOVCircle.ZIndex = 999
 
+-- // Função de Busca de Alvo Projetada no FOV
 local function getClosestPlayer()
     local target = nil
     local shortestDistance = _G.FOV
@@ -51,30 +55,32 @@ local function getClosestPlayer()
     return target
 end
 
--- // Silent Aim Logic (Hooking)
--- Nota: Isso redireciona a propriedade 'Hit' e 'Target' do Mouse
+-- // SILENT AIM: Hooking do Metamethod __index
 local gmt = getrawmetatable(game)
 setreadonly(gmt, false)
-local oldNamecall = gmt.__index
+local oldIndex = gmt.__index
 
 gmt.__index = newcclosure(function(self, key)
-    if _G.SilentAimEnabled and self == Mouse and (key == "Hit" or key == "Target") then
+    if _G.SilentAimEnabled and not checkcaller() and self == Mouse and (key == "Hit" or key == "Target") then
         local targetPlayer = getClosestPlayer()
-        if targetPlayer and targetPlayer.Character then
-            local endpoint = targetPlayer.Character[_G.TargetPart].Position + (targetPlayer.Character[_G.TargetPart].Velocity * _G.PredictionAmount)
-            return (key == "Hit" and CFrame.new(endpoint) or targetPlayer.Character[_G.TargetPart])
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild(_G.TargetPart) then
+            local targetPart = targetPlayer.Character[_G.TargetPart]
+            local prediction = targetPart.Position + (targetPart.Velocity * _G.PredictionAmount)
+            
+            return (key == "Hit" and CFrame.new(prediction) or targetPart)
         end
     end
-    return oldNamecall(self, key)
+    return oldIndex(self, key)
 end)
 setreadonly(gmt, true)
 
--- // Loop Principal
+-- // LOOP PRINCIPAL (RenderStepped para suavidade máxima)
 RS.RenderStepped:Connect(function()
+    -- Atualização Visual do FOV
     FOVCircle.Visible = _G.ShowFOV
     FOVCircle.Radius = _G.FOV
     FOVCircle.Position = UIS:GetMouseLocation()
-    FOVCircle.Color = Color3.fromRGB(255, 0, 0)
+    FOVCircle.Color = _G.FOVColor
 
     local targetPlayer = getClosestPlayer()
 
@@ -82,21 +88,20 @@ RS.RenderStepped:Connect(function()
         local targetPart = targetPlayer.Character[_G.TargetPart]
         local prediction = targetPart.Position + (targetPart.Velocity * _G.PredictionAmount)
         
-        -- Auto-Shoot (Clicker)
+        -- AUTO-SHOOT (Triggerbot Integrado)
         if _G.AutoShoot then
-            -- Simula o clique se houver um alvo válido no FOV
             mouse1press()
-            task.wait(0.05)
+            task.wait(0.02) -- Delay mínimo para registrar o hit
             mouse1release()
         end
 
-        -- Aimbot Suave (Opcional, se quiser que a câmera siga além do Silent Aim)
-        if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        -- AIMBOT SUAVE (Movimentação de Câmera)
+        if _G.AimbotEnabled and UIS:IsMouseButtonPressed(_G.AimbotKey) then
             local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
             if onScreen then
                 local mouseLocation = UIS:GetMouseLocation()
                 local targetVector = Vector2.new(screenPos.X, screenPos.Y)
-                local mouseMoveVector = (targetVector - mouseLocation) * _G.Smoothness
+                local mouseMoveVector = (targetVector - mouseLocation) * _G.AimbotSmoothness
                 
                 if mousemoverel then
                     mousemoverel(mouseMoveVector.X, mouseMoveVector.Y)
