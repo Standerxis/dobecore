@@ -4,33 +4,33 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- O círculo é criado apenas uma vez
+-- Inicialização do Círculo de FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
-FOVCircle.NumSides = 100
+FOVCircle.NumSides = 64 -- 100 é pesado, 64 já é bem liso
 FOVCircle.Filled = false
 FOVCircle.Transparency = 1
+FOVCircle.Visible = false
 
 local segurandoBotao = false
 
+-- Função para achar o alvo mais próximo do MOUSE (dentro do FOV)
 local function getClosestPlayer()
     local target = nil
-    -- Aqui ele usa o FOV Universal
-    local shortestDistance = _G.UniversalFOV or 100 
+    local shortestDistance = _G.FOV or 100 
 
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local head = player.Character:FindFirstChild("Head")
-            local hum = player.Character:FindFirstChild("Humanoid")
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
             
-            if head and hum and hum.Health > 0 then
+            if hum and hum.Health > 0 then
                 local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 
                 if onScreen then
                     local mouseLocation = UIS:GetMouseLocation()
                     local distance = (Vector2.new(pos.X, pos.Y) - mouseLocation).Magnitude
                     
-                    -- Verifica se está dentro do FOV unificado
                     if distance < shortestDistance then
                         target = head
                         shortestDistance = distance
@@ -42,43 +42,58 @@ local function getClosestPlayer()
     return target
 end
 
--- Input Listeners (AimbotKey continua sendo específico do Aimbot)
-UIS.InputBegan:Connect(function(input)
-    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
+-- Detecção de Input (Teclado ou Mouse)
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end -- Ignora se estiver digitando no chat
+    local key = _G.AimbotKey or Enum.UserInputType.MouseButton2
+    
+    if input.UserInputType == key or input.KeyCode == key then
         segurandoBotao = true
     end
 end)
 
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == _G.AimbotKey or input.KeyCode == _G.AimbotKey then
+    local key = _G.AimbotKey or Enum.UserInputType.MouseButton2
+    if input.UserInputType == key or input.KeyCode == key then
         segurandoBotao = false
     end
 end)
 
+-- Loop Principal
 RS.RenderStepped:Connect(function()
-    -- Sincronização com o Painel Profissional (Variáveis Universais)
+    -- Atualiza FOV visual
     FOVCircle.Visible = _G.ShowFOV or false
     FOVCircle.Radius = _G.FOV or 100
     FOVCircle.Color = _G.FOVColor or Color3.fromRGB(255, 255, 255)
     FOVCircle.Position = UIS:GetMouseLocation()
 
-    -- Lógica de disparo específica do Aimbot
+    -- Lógica do Aim
     if _G.AimbotEnabled and segurandoBotao then
         local targetPart = getClosestPlayer()
+        
         if targetPart then
-            local mouseLocation = UIS:GetMouseLocation()
-            local prediction = targetPart.Position + (targetPart.Velocity * (_G.PredictionAmount or 0.165))
+            local pred = _G.PredictionAmount or 0.165
+            local smooth = _G.AimbotSmoothness or 0.15
+            
+            -- Cálculo de Predição: Posição + (Velocidade * Tempo de Viagem)
+            local targetVelocity = targetPart.Parent:FindFirstChild("HumanoidRootPart") and targetPart.Parent.HumanoidRootPart.Velocity or Vector3.new(0,0,0)
+            local prediction = targetPart.Position + (targetVelocity * pred)
+            
             local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
             
             if onScreen then
+                local mouseLocation = UIS:GetMouseLocation()
                 local targetVector = Vector2.new(screenPos.X, screenPos.Y)
-                local mouseMoveVector = (targetVector - mouseLocation) * (_G.AimbotSmoothness or 0.15)
                 
+                -- Se usar mousemoverel (mais seguro contra anticheats de câmera)
                 if mousemoverel then
-                    mousemoverel(mouseMoveVector.X, mouseMoveVector.Y)
+                    local moveX = (targetVector.X - mouseLocation.X) * smooth
+                    local moveY = (targetVector.Y - mouseLocation.Y) * smooth
+                    mousemoverel(moveX, moveY)
                 else
+                    -- Fallback para interpolação de CFrame (Cuidado: pode ser detectável)
                     local lookAtGoal = CFrame.new(Camera.CFrame.Position, prediction)
-                    Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, _G.AimbotSmoothness or 0.15)
+                    Camera.CFrame = Camera.CFrame:Lerp(lookAtGoal, smooth)
                 end
             end
         end
