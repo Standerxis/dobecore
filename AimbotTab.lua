@@ -7,9 +7,11 @@ _G.PredictionAmount = 0.165
 _G.TargetPart = "Head"
 _G.SilentAimMethod = "Mouse.Hit" -- Padrão inicial
 _G.FOV = 100
+print("teste2")
 _G.ShowFOV = false
+print("teste1")
 _G.FOVColor = Color3.fromRGB(255, 255, 255)
-print("teste")
+print("teste2")
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
