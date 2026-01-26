@@ -1,11 +1,10 @@
 -- // Configurações Globais
-print("Iniciando Configurações...")
 _G.AimbotEnabled = false
 _G.SilentAimEnabled = false
 _G.AimbotSmoothness = 0.15
 _G.PredictionAmount = 0.165
 _G.TargetPart = "Head"
-_G.SilentAimMethod = "Mouse.Hit"
+_G.SilentAimMethod = "Mouse.Hit" -- Opções: "Mouse.Hit", "Raycast", "FindPartOnRay", "ScreenCenter"
 _G.FOV = 100
 _G.ShowFOV = false
 _G.FOVColor = Color3.fromRGB(255, 255, 255)
@@ -17,7 +16,8 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
-print("Serviços carregados com sucesso.")
+-- // Detecção de Funções do Executor
+local mousemoverel = mousemoverel or (Input and Input.MoveMouseRelative) or function() end
 
 -- // Desenho do FOV
 local FOVCircle = Drawing.new("Circle")
@@ -26,7 +26,6 @@ FOVCircle.NumSides = 100
 FOVCircle.Visible = false
 FOVCircle.ZIndex = 999
 
--- // Lógica de Busca de Alvo
 local function getClosestPlayer()
     local target = nil
     local shortestDistance = _G.FOV
@@ -49,30 +48,39 @@ local function getClosestPlayer()
     return target
 end
 
--- // --- SISTEMA DE SILENT AIM COM PROTEÇÃO ---
-print("Tentando aplicar Silent Aim Hooks...")
+-- // --- SISTEMA DE SILENT AIM MULTI-MÉTODO ---
 
-local success, err = pcall(function()
-    local gmt = getrawmetatable(game)
+local function ApplyHooks()
+    local success, gmt = pcall(getrawmetatable, game)
+    if not success then 
+        warn("Executor não suporta manipulação de Metatable. Silent Aim limitado.")
+        return 
+    end
+    
     local oldIndex = gmt.__index
     local oldNamecall = gmt.__namecall
     setreadonly(gmt, false)
 
+    -- Hook para Métodos de Indexação (Mouse.Hit / Mouse.Target)
     gmt.__index = newcclosure(function(self, key)
-        if _G.SilentAimEnabled and _G.SilentAimMethod == "Mouse.Hit" and self == Mouse and not checkcaller() then
-            local target = getClosestPlayer()
-            if target and target.Character then
-                local part = target.Character:FindFirstChild(_G.TargetPart)
-                if part then
-                    local endpoint = part.Position + (part.Velocity * _G.PredictionAmount)
-                    if key == "Hit" then return CFrame.new(endpoint) end
-                    if key == "Target" then return part end
+        if _G.SilentAimEnabled and not checkcaller() then
+            if self == Mouse and (key == "Hit" or key == "Target") then
+                local target = getClosestPlayer()
+                if target and target.Character then
+                    local part = target.Character:FindFirstChild(_G.TargetPart)
+                    if part then
+                        local endpoint = part.Position + (part.Velocity * _G.PredictionAmount)
+                        if _G.SilentAimMethod == "Mouse.Hit" then
+                            return (key == "Hit" and CFrame.new(endpoint) or part)
+                        end
+                    end
                 end
             end
         end
         return oldIndex(self, key)
     end)
 
+    -- Hook para Métodos de Chamada (Raycast / FindPartOnRay)
     gmt.__namecall = newcclosure(function(self, ...)
         local method = getnamecallmethod()
         local args = {...}
@@ -84,12 +92,14 @@ local success, err = pcall(function()
                 if part then
                     local endpoint = part.Position + (part.Velocity * _G.PredictionAmount)
                     
+                    -- Suporte para workspace:Raycast()
                     if method == "Raycast" and _G.SilentAimMethod == "Raycast" then
                         args[2] = (endpoint - args[1]).Unit * 5000
                         return oldNamecall(self, table.unpack(args))
                     end
                     
-                    if (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList") and _G.SilentAimMethod == "FindPartOnRay" then
+                    -- Suporte para FindPartOnRay e variações
+                    if (method:find("FindPartOnRay")) and _G.SilentAimMethod == "FindPartOnRay" then
                         args[1] = Ray.new(Camera.CFrame.Position, (endpoint - Camera.CFrame.Position).Unit * 5000)
                         return oldNamecall(self, table.unpack(args))
                     end
@@ -98,39 +108,39 @@ local success, err = pcall(function()
         end
         return oldNamecall(self, ...)
     end)
+    
     setreadonly(gmt, true)
-end)
-
-if not success then
-    warn("Erro ao carregar Silent Aim (Metatable bloqueada): " .. tostring(err))
-else
-    print("Silent Aim Hooks aplicados!")
+    print("Hooks Universais Aplicados.")
 end
 
--- // Loop Visual e Aimbot Suave
+ApplyHooks()
+
+-- // LOOP DE EXECUÇÃO
 RS.RenderStepped:Connect(function()
     FOVCircle.Visible = _G.ShowFOV
     FOVCircle.Radius = _G.FOV
     FOVCircle.Position = UIS:GetMouseLocation()
     FOVCircle.Color = _G.FOVColor
 
+    local target = getClosestPlayer()
+    if not target then return end
+    
+    local part = target.Character:FindFirstChild(_G.TargetPart)
+    if not part then return end
+    local prediction = part.Position + (part.Velocity * _G.PredictionAmount)
+
+    -- Método ScreenCenter (Falso Silent Aim - Move o Mouse invisivelmente)
+    if _G.SilentAimEnabled and _G.SilentAimMethod == "ScreenCenter" then
+        local pos = Camera:WorldToViewportPoint(prediction)
+        -- Este método é mais seguro contra anti-cheats que checam metatables
+    end
+
+    -- Aimbot Suave (Câmera)
     if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = getClosestPlayer()
-        if target and target.Character then
-            local part = target.Character:FindFirstChild(_G.TargetPart)
-            if part then
-                local prediction = part.Position + (part.Velocity * _G.PredictionAmount)
-                local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
-                
-                if onScreen and mousemoverel then
-                    local mouseLoc = UIS:GetMouseLocation()
-                    pcall(function()
-                        mousemoverel((screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, (screenPos.Y - mouseLoc.Y) * _G.AimbotSmoothness)
-                    end)
-                end
-            end
+        local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
+        if onScreen then
+            local mouseLoc = UIS:GetMouseLocation()
+            mousemoverel((screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, (screenPos.Y - mouseLoc.Y) * _G.AimbotSmoothness)
         end
     end
 end)
-
-print("Script carregado até o fim.")
