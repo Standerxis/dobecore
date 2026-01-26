@@ -130,3 +130,26 @@ local function ApplySilentAim()
     setreadonly(gmt, true)
 end
 ApplySilentAim()
+
+-- // LOOP PRINCIPAL
+RS.RenderStepped:Connect(function()
+    FOVCircle.Visible = _G.ShowFOV
+    FOVCircle.Radius = _G.FOV
+    FOVCircle.Position = UIS:GetMouseLocation()
+    FOVCircle.Color = _G.FOVColor
+
+    if _G.AimbotEnabled and UIS:IsMouseButtonPressed(_G.AimbotKey) then
+        local target = getClosestPlayer()
+        if target and target.Character then
+            local part = target.Character:FindFirstChild(_G.TargetPart)
+            if part then
+                local prediction = part.Position + (part.Velocity * _G.PredictionAmount)
+                local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
+                if onScreen then
+                    local mouseLoc = UIS:GetMouseLocation()
+                    mousemoverel((screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, (screenPos.Y - mouseLoc.Y) * _G.AimbotSmoothness)
+                end
+            end
+        end
+    end
+end)
