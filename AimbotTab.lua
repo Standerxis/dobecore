@@ -1,7 +1,8 @@
 -- // Configurações Globais
 _G.AimbotEnabled = false
 _G.HitboxEnabled = false
-_G.AutoFire = false -- Ativa/Desativa o disparo automático
+_G.AutoFire = false 
+_G.AutoFirePrecision = 15
 
 _G.AimbotSmoothness = 0.15
 _G.PredictionAmount = 0.165
@@ -34,7 +35,7 @@ local function RealClick(x, y)
         VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
         task.wait(math.random(10,20)/1000)
         VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
-        task.wait(0.1) -- Delay entre tiros
+        task.wait(0.1) 
         isClicking = false
     end)
 end
@@ -93,40 +94,51 @@ task.spawn(function()
     end
 end)
 
--- // --- LOOP DE RENDERIZAÇÃO (Aimbot + Auto-Fire) ---
+-- // --- LOOP DE RENDERIZAÇÃO ---
+local lastTargetName = ""
+
 RS.RenderStepped:Connect(function()
     FOVCircle.Visible = _G.ShowFOV
     FOVCircle.Radius = _G.FOV
     FOVCircle.Position = UIS:GetMouseLocation()
     FOVCircle.Color = _G.FOVColor
 
-    if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = getClosestPlayer()
-        if target and target.Character then
-            local part = target.Character:FindFirstChild(_G.TargetPart)
-            if part then
-                local prediction = part.Position + (part.Velocity * _G.PredictionAmount)
-                local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
+    -- Procura o alvo o tempo todo (independente de clicar ou não)
+    local target = getClosestPlayer()
+    
+    if target and target.Character then
+        -- Print no console apenas quando mudar de alvo para não floodar
+        if lastTargetName ~= target.Name then
+            print("Jogador detectado no FOV: " .. target.Name)
+            lastTargetName = target.Name
+        end
+
+        local part = target.Character:FindFirstChild(_G.TargetPart)
+        if part then
+            local prediction = part.Position + (part.Velocity * _G.PredictionAmount)
+            local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
+            
+            if onScreen then
+                local mouseLoc = UIS:GetMouseLocation()
                 
-                if onScreen then
-                    local mouseLoc = UIS:GetMouseLocation()
-                    
-                    -- Movimento do Aimbot
+                -- 1. Movimento do Aimbot (Só se estiver segurando o Direito)
+                if _G.AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
                     mousemoverel(
                         (screenPos.X - mouseLoc.X) * _G.AimbotSmoothness, 
                         (screenPos.Y - mouseLoc.Y) * _G.AimbotSmoothness
                     )
-                    
-                    -- Lógica de Auto-Fire (Atira se estiver perto do alvo)
-                    if _G.AutoFire then
+                end
+                
+                -- 2. Lógica de Auto-Fire (Independente de mirar, se estiver na precisão ele atira)
+                if _G.AutoFire then
                     local distanceToTarget = (Vector2.new(screenPos.X, screenPos.Y) - mouseLoc).Magnitude
-    -- Agora usa a precisão definida pelo slider da UI (padrão 15)
                     if distanceToTarget < (_G.AutoFirePrecision or 15) then 
-                    RealClick(mouseLoc.X, mouseLoc.Y)
-                        end
+                        RealClick(mouseLoc.X, mouseLoc.Y)
                     end
                 end
             end
         end
+    else
+        lastTargetName = "" -- Reseta se não houver ninguém no FOV
     end
 end)
