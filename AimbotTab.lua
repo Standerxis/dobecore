@@ -4,14 +4,13 @@ local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Configurações de Elite
+-- Configurações Avançadas
 local Config = {
     Enabled = true,
     TeamCheck = true,
-    FOV_Radius = 120, -- Tamanho do círculo na tela
-    MaxAngle = 25,    -- Ângulo máximo em graus (ignora zoom)
-    Smoothness = 0.15, -- 0.1 a 0.3 (quanto menor, mais suave/legit)
-    Prediction = 0.14, -- Ajuste para a velocidade do projétil/ping
+    FOV = 150,
+    Smoothness = 0.12, -- Quanto menor, mais suave. 1 = Instantâneo.
+    PredictionAmount = 0.165, -- Ajuste para compensar o lag/velocidade (0.1 a 0.2 é o ideal)
     TargetPart = "Head",
     Key = Enum.UserInputType.MouseButton2
 }
@@ -19,66 +18,60 @@ local Config = {
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 64
-FOVCircle.Color = Color3.fromRGB(255, 80, 80)
+FOVCircle.Transparency = 1
 FOVCircle.Filled = false
-FOVCircle.Transparency = 0.6
+FOVCircle.Color = Color3.fromRGB(0, 255, 150)
 
 local currentTarget = nil
 local isAiming = false
 
--- Função para ignorar seu personagem e acessórios no Raycast
-local function getIgnoreList()
-    local list = {LocalPlayer.Character}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p.Character then table.insert(list, p.Character) end
-    end
-    return list
-end
-
+-- Função de Visibilidade Melhorada
 local function isVisible(part, character)
     local rayParams = RaycastParams.new()
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    -- Ignora você e o personagem que você está tentando acertar
     rayParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
+    rayParams.IgnoreWater = true
     
-    -- O raio sai da Câmera para o Alvo
-    local result = workspace:Raycast(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000, rayParams)
+    local origin = Camera.CFrame.Position
+    local direction = (part.Position - origin).Unit * 500
+    local result = workspace:Raycast(origin, direction, rayParams)
+    
     return result == nil
 end
 
--- Busca o alvo baseado no ângulo da câmera (independente de zoom)
+-- Busca o alvo com lógica de proximidade e FOV
 local function getBestTarget()
-    local bestTarget = nil
-    local minAngle = Config.MaxAngle
+    local mousePos = UIS:GetMouseLocation()
+    local closestDist = Config.FOV
+    local selected = nil
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(Config.TargetPart) then
+            -- Team Check
             if Config.TeamCheck and player.Team == LocalPlayer.Team then continue end
             
-            local head = player.Character:FindFirstChild(Config.TargetPart)
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            local char = player.Character
+            local part = char[Config.TargetPart]
+            local hum = char:FindFirstChildOfClass("Humanoid")
 
-            if head and hum and hum.Health > 0 then
-                -- Cálculo de Ângulo (Produto Escalar)
-                local vectorToTarget = (head.Position - Camera.CFrame.Position).Unit
-                local cameraLook = Camera.CFrame.LookVector
+            if hum and hum.Health > 0 then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
                 
-                -- Cosine Similarity -> Ângulo em graus
-                local dotProduct = cameraLook:Dot(vectorToTarget)
-                local angle = math.deg(math.acos(math.clamp(dotProduct, -1, 1)))
-
-                if angle < minAngle then
-                    if isVisible(head, player.Character) then
-                        minAngle = angle
-                        bestTarget = player
+                if onScreen and isVisible(part, char) then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        selected = player
                     end
                 end
             end
         end
     end
-    return bestTarget
+    return selected
 end
 
--- Ativação por tecla
+-- Input Listeners
 UIS.InputBegan:Connect(function(input)
     if input.UserInputType == Config.Key or input.KeyCode == Config.Key then
         isAiming = true
@@ -88,43 +81,50 @@ end)
 UIS.InputEnded:Connect(function(input)
     if input.UserInputType == Config.Key or input.KeyCode == Config.Key then
         isAiming = false
-        currentTarget = nil
+        currentTarget = nil -- Limpa o alvo ao soltar o botão
     end
 end)
 
--- Loop de atualização em 60Hz+
-RS.RenderStepped:Connect(function()
-    local mouseLoc = UIS:GetMouseLocation()
-    FOVCircle.Position = mouseLoc
-    FOVCircle.Radius = Config.FOV_Radius
-    FOVCircle.Visible = Config.Enabled
+-- Loop Principal de Alta Frequência
+RS.RenderStepped:Connect(function(deltaTime)
+    local mouseLocation = UIS:GetMouseLocation()
+    
+    -- UI do FOV
+    FOVCircle.Visible = true
+    FOVCircle.Radius = Config.FOV
+    FOVCircle.Position = mouseLocation
 
     if Config.Enabled and isAiming then
-        -- Se o alvo atual fugir ou morrer, busca outro
+        -- Mantém o alvo atual ou busca um novo se necessário
         if not currentTarget or not currentTarget.Character or not currentTarget.Character:FindFirstChild("Humanoid") or currentTarget.Character.Humanoid.Health <= 0 then
             currentTarget = getBestTarget()
         end
 
         if currentTarget and currentTarget.Character then
-            local part = currentTarget.Character:FindFirstChild(Config.TargetPart)
-            if part then
-                -- LÓGICA DE PREDIÇÃO E MOVIMENTO
-                -- P = P0 + (V * t)
-                local prediction = part.Position + (part.Velocity * Config.Prediction)
+            local targetPart = currentTarget.Character:FindFirstChild(Config.TargetPart)
+            if targetPart then
+                -- CÁLCULO DE PREDIÇÃO:
+                -- Prevemos a posição baseada na velocidade do alvo multiplicada pelo delta de tempo
+                local velocity = targetPart.Velocity
+                local predictedPosition = targetPart.Position + (velocity * Config.PredictionAmount)
                 
-                -- Criamos uma matriz de rotação que olha para o alvo
-                local targetCFrame = CFrame.new(Camera.CFrame.Position, prediction)
+                local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPosition)
                 
-                -- Suavização (Lerp) para a câmera não dar "snap" instantâneo e parecer hack óbvio
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, Config.Smoothness)
-                
-                -- Opcional: Centraliza o mouse no centro da tela para jogos que usam Raycast do mouse
-                if mousemoverel then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(prediction)
-                    if onScreen then
-                        local diff = Vector2.new(screenPos.X, screenPos.Y) - mouseLoc
-                        mousemoverel(diff.X * 0.4, diff.Y * 0.4)
+                if onScreen then
+                    -- Interpolação para movimento suave (Lerp Espacial)
+                    local targetVec = Vector2.new(screenPos.X, screenPos.Y)
+                    local diff = targetVec - mouseLocation
+                    
+                    -- Se o executor suportar mousemoverel, ele é mais furtivo e eficiente
+                    if mousemoverel then
+                        mousemoverel(diff.X * Config.Smoothness, diff.Y * Config.Smoothness)
+                    else
+                        -- Fallback para câmera direta se não houver mousemoverel
+                        local lookAt = CFrame.new(Camera.CFrame.Position, predictedPosition)
+                        Camera.CFrame = Camera.CFrame:Lerp(lookAt, Config.Smoothness)
                     end
+                else
+                    currentTarget = nil -- Perdeu de vista, busca outro
                 end
             end
         end
