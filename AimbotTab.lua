@@ -9,21 +9,21 @@ _G.SilentAimMethod = "Mouse.Hit" -- Padrão inicial
 _G.FOV = 100
 _G.ShowFOV = false
 _G.FOVColor = Color3.fromRGB(255, 255, 255)
-
+print("teste")
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
-
+print("teste")
 -- // Desenho do FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 100
 FOVCircle.Visible = false
 FOVCircle.ZIndex = 999
-
+print("teste")
 -- // Lógica de Busca de Alvo
 local function getClosestPlayer()
     local target = nil
@@ -45,13 +45,13 @@ local function getClosestPlayer()
     end
     return target
 end
-
+print("teste")
 -- // --- SISTEMA DE SILENT AIM UNIVERSAL ---
 local gmt = getrawmetatable(game)
 local oldIndex = gmt.__index
 local oldNamecall = gmt.__namecall
 setreadonly(gmt, false)
-
+print("teste")
 -- Hook para Mouse.Hit e Mouse.Target (Jogos Simples)
 gmt.__index = newcclosure(function(self, key)
     if _G.SilentAimEnabled and _G.SilentAimMethod == "Mouse.Hit" and self == Mouse and not checkcaller() then
@@ -64,7 +64,7 @@ gmt.__index = newcclosure(function(self, key)
     end
     return oldIndex(self, key)
 end)
-
+print("teste")
 -- Hook para Raycast e FindPartOnRay (Jogos Complexos/Modernos)
 gmt.__namecall = newcclosure(function(self, ...)
     local method = getnamecallmethod()
@@ -91,7 +91,7 @@ gmt.__namecall = newcclosure(function(self, ...)
     return oldNamecall(self, ...)
 end)
 setreadonly(gmt, true)
-
+print("teste")
 -- // Loop Visual e Aimbot Suave
 RS.RenderStepped:Connect(function()
     FOVCircle.Visible = _G.ShowFOV
@@ -113,3 +113,4 @@ RS.RenderStepped:Connect(function()
         end
     end
 end)
+print("teste")
